@@ -39,6 +39,41 @@
 #include "kernel/panic.h"
 #include "lib/libc.h"
 #include "kernel/assert.h"
+#include "drivers/device.h"
+#include "drivers/gcd.h"
+
+
+int syscall_read(int fhandle, void *buffer, int length){
+  device_t *dev;
+  gcd_t *gcd;
+
+  dev = device_get(fhandle, 0);
+  KERNEL_ASSERT(dev != NULL);
+
+  gcd = (gcd_t *)dev->generic_device;
+  KERNEL_ASSERT(gcd != NULL);
+ 
+  gcd->read(gcd, buffer, length);
+
+  return length;
+}
+
+int syscall_write(int fhandle, const void *buffer, int length){
+  device_t *dev;
+  gcd_t *gcd;
+
+  dev = device_get(fhandle, 0);
+  KERNEL_ASSERT(dev != NULL);
+
+  gcd = (gcd_t *)dev->generic_device;
+  KERNEL_ASSERT(gcd != NULL);
+ 
+  gcd->write(gcd, buffer, length);
+
+  return length;
+}
+
+
 
 /**
  * Handle system calls. Interrupts are enabled when this function is
@@ -60,10 +95,20 @@ void syscall_handle(context_t *user_context)
      */
     switch(user_context->cpu_regs[MIPS_REGISTER_A0]) {
     case SYSCALL_HALT:
-        halt_kernel();
-        break;
+      halt_kernel();
+      break;
+    case SYSCALL_WRITE:
+      syscall_write(FILEHANDLE_STDOUT, 
+		    (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
+		    (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
+      break;
+    case SYSCALL_READ:
+      syscall_read(FILEHANDLE_STDIN, 
+		   (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
+		   (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
+      break;
     default: 
-        KERNEL_PANIC("Unhandled system call\n");
+      KERNEL_PANIC("Unhandled system call\n");
     }
 
     /* Move to next instruction after system call */
