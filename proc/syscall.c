@@ -40,6 +40,7 @@
 #include "lib/libc.h"
 #include "kernel/assert.h"
 #include "drivers/device.h"
+#include "drivers/yams.h"
 #include "drivers/gcd.h"
 
 
@@ -47,7 +48,7 @@ int syscall_read(int fhandle, void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
 
-  dev = device_get(fhandle, 0);
+  dev = device_get(YAMS_TYPECODE_TTY + fhandle - fhandle, 0);
   KERNEL_ASSERT(dev != NULL);
 
   gcd = (gcd_t *)dev->generic_device;
@@ -62,7 +63,7 @@ int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
 
-  dev = device_get(fhandle, 0);
+  dev = device_get(YAMS_TYPECODE_TTY + fhandle - fhandle, 0);
   KERNEL_ASSERT(dev != NULL);
 
   gcd = (gcd_t *)dev->generic_device;

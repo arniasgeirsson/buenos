@@ -40,7 +40,7 @@ int main(void)
   char *test = "teststring\n"; 
   
   
-  syscall_write(1, (void*)test, 11);
+  syscall_read(1, (void*)test, 11);
   syscall_halt();
   
   return 0;
