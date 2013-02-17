@@ -39,7 +39,9 @@ int main(void)
 {
   char test[100]; 
   
-  syscall_read(1, (void*)test, 11);
+  syscall_write(1, (void*)"Test: Type somthing\n", 20);
+  syscall_read(1, (void*)test, 100);
+  syscall_write(1, (void*)"Good job!\n", 10);
   syscall_halt();
   
   return 0;

@@ -36,11 +36,9 @@
 #include "tests/lib.h"
 
 int main(void)
-{
-  char *test = "teststring\n"; 
-  
-  
-  syscall_write(1, (void*)test, 11);
+{  
+  syscall_write(1, (void*)"--- Write-Teststring 1 ---\n", 27);
+  syscall_write(1, (void*)"--- Write-Teststring 2 ---\n", 40);
   syscall_halt();
   
   return 0;

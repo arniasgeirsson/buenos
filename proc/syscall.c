@@ -46,6 +46,8 @@
 int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
+  int bytes = 0;
+  int i;
 
   dev = device_get(YAMS_TYPECODE_TTY + fhandle - fhandle, 0);
   if(dev == NULL)
@@ -54,17 +56,21 @@ int syscall_write(int fhandle, const void *buffer, int length){
   gcd = (gcd_t *)dev->generic_device;
   if(gcd == NULL)
     return -1;
- 
-  gcd->write(gcd, buffer, length);
-  gcd->write(gcd, (void*)"\n", 1);
-  
-  return length;
+
+  for(i = 0; i < length; i++){
+    if(*(char*)buffer == '\0')      
+      break;
+    bytes += gcd->write(gcd, buffer, 1);
+    buffer++;
+  }
+  return bytes;
 }
 
 int syscall_read(int fhandle, void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
   int i;
+  int bytes = 0;
 
   dev = device_get(YAMS_TYPECODE_TTY + fhandle - fhandle, 0);
   if(dev == NULL)
@@ -77,7 +83,7 @@ int syscall_read(int fhandle, void *buffer, int length){
   gcd->write(gcd, (void*)"> ", 2);
 
   for(i = 0; i < length-1; i++){
-    gcd->read(gcd, buffer, length);
+    bytes += gcd->read(gcd, buffer, length);
     
     if(*(char*)buffer == '\r')      
       break;
@@ -86,10 +92,10 @@ int syscall_read(int fhandle, void *buffer, int length){
     buffer++;
   }
 
-  *(char*)buffer = '\0';
-  gcd->write(gcd, (void*)"\n", 1);
+  ((char*)buffer)[i] = '\0';
+   gcd->write(gcd, (void*)"\n", 1);
 
-  return i;
+  return bytes;
 }
 
 /**

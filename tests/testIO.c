@@ -36,12 +36,14 @@
 #include "tests/lib.h"
 
 int main(void)
-{
-  char *test[100]; 
+{ 
+  syscall_write(1, (void*)"Write somthing\n", 15);
+  char *buffer[10];
   
-  syscall_read(1, (void*)test, 99);
-  syscall_write(1, (void*)test, 99);
+  syscall_read(1, (void*)buffer, 10);
+  syscall_write(1, (void*)"You wrote: ", 11);
+  syscall_write(1, (void*)buffer, 10);
+  syscall_write(1, (void*)"\n", 1);
   syscall_halt();
-  
   return 0;
 }
