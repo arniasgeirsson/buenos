@@ -3,7 +3,7 @@ Discarded input sections
 
  .reginfo       0x0000000000000000       0x18 _syscall.o
  .reginfo       0x0000000000000000       0x18 lib.o
- .reginfo       0x0000000000000000       0x18 test_read.o
+ .reginfo       0x0000000000000000       0x18 testIO.o
 
 Memory Configuration
 
@@ -14,7 +14,7 @@ Linker script and memory map
 
                 0x0000000000001000                . = 0x1000
 
-ro_segment      0x0000000000001000      0x4a0
+ro_segment      0x0000000000001000      0x4b8
  *(.text .rodata .rodata.*)
  .text          0x0000000000001000       0x24 crt.o
                 0x0000000000001000                _start
@@ -36,7 +36,7 @@ ro_segment      0x0000000000001000      0x4a0
                 0x0000000000001368                syscall_write
                 0x00000000000013bc                syscall_create
                 0x000000000000140c                syscall_delete
- .text          0x0000000000001454       0x4c test_read.o
+ .text          0x0000000000001454       0x64 testIO.o
                 0x0000000000001454                main
 
 rw_segment      0x0000000000002000        0x0
@@ -47,14 +47,14 @@ rw_segment      0x0000000000002000        0x0
  .bss           0x0000000000002000        0x0 _syscall.o
  .data          0x0000000000002000        0x0 lib.o
  .bss           0x0000000000002000        0x0 lib.o
- .data          0x0000000000002000        0x0 test_read.o
- .bss           0x0000000000002000        0x0 test_read.o
+ .data          0x0000000000002000        0x0 testIO.o
+ .bss           0x0000000000002000        0x0 testIO.o
                 0x0000000000002000                BINARY_ENDS_HERE = .
 LOAD crt.o
 LOAD _syscall.o
 LOAD lib.o
-LOAD test_read.o
-OUTPUT(test_read elf32-bigmips)
+LOAD testIO.o
+OUTPUT(testIO elf32-bigmips)
 
 .reginfo        0x0000000000000000       0x18
  .reginfo       0x0000000000000000       0x18 crt.o
@@ -63,23 +63,23 @@ OUTPUT(test_read elf32-bigmips)
  .pdr           0x0000000000000000       0x40 crt.o
  .pdr           0x0000000000000040       0x20 _syscall.o
  .pdr           0x0000000000000060      0x1c0 lib.o
- .pdr           0x0000000000000220       0x20 test_read.o
+ .pdr           0x0000000000000220       0x20 testIO.o
 
 .mdebug.abi32   0x0000000000000000        0x0
  .mdebug.abi32  0x0000000000000000        0x0 lib.o
- .mdebug.abi32  0x0000000000000000        0x0 test_read.o
+ .mdebug.abi32  0x0000000000000000        0x0 testIO.o
 
 .comment        0x0000000000000000       0x11
  .comment       0x0000000000000000       0x11 lib.o
                                          0x12 (size before relaxing)
- .comment       0x0000000000000000       0x12 test_read.o
+ .comment       0x0000000000000000       0x12 testIO.o
 
 .gnu.attributes
                 0x0000000000000000       0x10
  .gnu.attributes
                 0x0000000000000000       0x10 lib.o
  .gnu.attributes
-                0x0000000000000010       0x10 test_read.o
+                0x0000000000000010       0x10 testIO.o
 
 Cross Reference Table
 
@@ -88,7 +88,7 @@ __main                                            crt.o
 _start                                            crt.o
 _syscall                                          _syscall.o
                                                   lib.o
-main                                              test_read.o
+main                                              testIO.o
                                                   crt.o
 syscall_close                                     lib.o
 syscall_create                                    lib.o
@@ -98,11 +98,12 @@ syscall_execp                                     lib.o
 syscall_exit                                      lib.o
 syscall_fork                                      lib.o
 syscall_halt                                      lib.o
-                                                  test_read.o
+                                                  testIO.o
 syscall_join                                      lib.o
 syscall_memlimit                                  lib.o
 syscall_open                                      lib.o
 syscall_read                                      lib.o
-                                                  test_read.o
+                                                  testIO.o
 syscall_seek                                      lib.o
 syscall_write                                     lib.o
+                                                  testIO.o

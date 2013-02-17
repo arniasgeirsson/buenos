@@ -43,38 +43,54 @@
 #include "drivers/yams.h"
 #include "drivers/gcd.h"
 
-
-int syscall_read(int fhandle, void *buffer, int length){
-  device_t *dev;
-  gcd_t *gcd;
-
-  dev = device_get(YAMS_TYPECODE_TTY + fhandle - fhandle, 0);
-  KERNEL_ASSERT(dev != NULL);
-
-  gcd = (gcd_t *)dev->generic_device;
-  KERNEL_ASSERT(gcd != NULL);
- 
-  gcd->read(gcd, buffer, length);
-
-  return length;
-}
-
 int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
 
   dev = device_get(YAMS_TYPECODE_TTY + fhandle - fhandle, 0);
-  KERNEL_ASSERT(dev != NULL);
+  if(dev == NULL)
+    return -1;
 
   gcd = (gcd_t *)dev->generic_device;
-  KERNEL_ASSERT(gcd != NULL);
+  if(gcd == NULL)
+    return -1;
  
   gcd->write(gcd, buffer, length);
-
+  gcd->write(gcd, (void*)"\n", 1);
+  
   return length;
 }
 
+int syscall_read(int fhandle, void *buffer, int length){
+  device_t *dev;
+  gcd_t *gcd;
+  int i;
 
+  dev = device_get(YAMS_TYPECODE_TTY + fhandle - fhandle, 0);
+  if(dev == NULL)
+    return -1;
+
+  gcd = (gcd_t *)dev->generic_device;
+  if(gcd == NULL)
+    return -1;
+
+  gcd->write(gcd, (void*)"> ", 2);
+
+  for(i = 0; i < length-1; i++){
+    gcd->read(gcd, buffer, length);
+    
+    if(*(char*)buffer == '\r')      
+      break;
+
+    gcd->write(gcd, buffer, 1);
+    buffer++;
+  }
+
+  *(char*)buffer = '\0';
+  gcd->write(gcd, (void*)"\n", 1);
+
+  return i;
+}
 
 /**
  * Handle system calls. Interrupts are enabled when this function is

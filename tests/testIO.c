@@ -37,9 +37,10 @@
 
 int main(void)
 {
-  char test[100]; 
+  char *test[100]; 
   
-  syscall_read(1, (void*)test, 11);
+  syscall_read(1, (void*)test, 99);
+  syscall_write(1, (void*)test, 99);
   syscall_halt();
   
   return 0;
