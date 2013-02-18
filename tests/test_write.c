@@ -38,7 +38,7 @@
 int main(void)
 {  
   syscall_write(1, (void*)"--- Write-Teststring 1 ---\n", 27);
-  syscall_write(1, (void*)"--- Write-Teststring 2 ---\n", 40);
+  syscall_write(1, (void*)"--- Write-Teststring 2 ---\n\0testtest", 40);
   syscall_halt();
   
   return 0;

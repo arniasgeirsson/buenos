@@ -37,13 +37,19 @@
 
 int main(void)
 { 
-  syscall_write(1, (void*)"Write somthing\n", 15);
-  char *buffer[10];
-  
-  syscall_read(1, (void*)buffer, 10);
-  syscall_write(1, (void*)"You wrote: ", 11);
-  syscall_write(1, (void*)buffer, 10);
-  syscall_write(1, (void*)"\n", 1);
+  syscall_write(1, (void*)"Write somthing\nWrite an empty line to stop\n", 44);
+  char *buffer[50];
+  void *buffer1 = (void*)buffer;
+  while(1){
+    syscall_read(1, buffer1, 50);
+
+    if(*(char*)buffer1 == '\0')
+      break;
+    syscall_write(1, (void*)"You wrote: ", 11);
+    syscall_write(1, buffer1, 50);
+    syscall_write(1, (void*)"\n", 1);
+  }
+
   syscall_halt();
   return 0;
 }
