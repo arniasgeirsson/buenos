@@ -36,10 +36,23 @@
 #include "tests/lib.h"
 
 int main(void)
-{  
+{ 
+  char *buffer[50];
+  void *buffer1 = (void*)buffer;
+  
   syscall_write(1, (void*)"--- Write-Teststring 1 ---\n", 27);
   syscall_write(1, (void*)"--- Write-Teststring 2 ---\n\0testtest", 40);
-  syscall_halt();
+  syscall_write(1, (void*)"Write somthing\nWrite an empty line to stop\n", 44);
   
+  while(1){
+    syscall_read(1, buffer1, 50);  
+    if(*(char*)buffer1 == '\0')
+      break;
+    syscall_write(1, (void*)"You wrote: ", 11);
+    syscall_write(1, buffer1, 50);
+    syscall_write(1, (void*)"\n", 1);
+  }
+
+  syscall_halt();
   return 0;
 }
