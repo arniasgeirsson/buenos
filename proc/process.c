@@ -78,6 +78,10 @@ void process_start(const char *executable)
 
     interrupt_status_t intr_status;
 
+    /* Is used by process_spawn.
+     * This must take a pid instead of string, it can the look
+     * up in the process_table to get the executable. */
+
     my_entry = thread_get_current_thread_entry();
 
     /* If the pagetable of this thread is not NULL, we are trying to
@@ -189,11 +193,20 @@ void process_start(const char *executable)
 }
 
 void process_init() {
+  /* Initialize the process table, fill it with empty entries. */
   KERNEL_PANIC("Not implemented.");
 }
 
 process_id_t process_spawn(const char *executable) {
   executable = executable;
+  /* Check if there is room for one more process
+   * in the process table, if there is room:
+   * take that spot, init process, mark as child of this
+   * return its newly created pid.
+   * Must call process_start.*/
+
+  /* The pid is the process's index in the process_table. */
+
   KERNEL_PANIC("Not implemented.");
   return 0; /* Dummy */
 }
@@ -201,11 +214,28 @@ process_id_t process_spawn(const char *executable) {
 /* Stop the process and the thread it runs in. Sets the return value as well */
 void process_finish(int retval) {
   retval=retval;
+  /* Stop the process and the thread it runs in.
+   * Set the return value, retval.
+   * Wake up any joined threads.
+   * Set state to zombie. */
+
+
+  /* Before calling thread finish, process_finish must do:
+   * vm_destroy_pagetable(thr->pagetable);
+   * thr->pagetable = NULL;
+   * Where thr is the kernel thread this process is executing on.
+   * The two lines cleans on virtuel memory used. */
   KERNEL_PANIC("Not implemented.");
 }
 
 int process_join(process_id_t pid) {
   pid=pid;
+
+  /* Look pid up in table, if pid exists,
+   * make sure it is a child of this process aswell,
+   * wait/spin/sleep (use buenos sleep queues) until it dies,
+   * and remove it from the table, when it returns.
+   * Set state to running (?) */
   KERNEL_PANIC("Not implemented.");
   return 0; /* Dummy */
 }
