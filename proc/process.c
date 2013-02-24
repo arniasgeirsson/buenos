@@ -45,6 +45,7 @@
 #include "vm/vm.h"
 #include "vm/pagepool.h"
 #include "kernel/spinlock.h"
+#include "kernel/sleepq.h"
 
 /** @name Process startup
  *
@@ -303,7 +304,6 @@ process_id_t process_spawn(const char *executable) {
   return i;
 }
 
-/* Stop the process and the thread it runs in. Sets the return value as well */
 void process_finish(int retval) {
   retval=retval;
   /* Stop the process and the thread it runs in.
@@ -327,6 +327,9 @@ void process_finish(int retval) {
 
   spinlock_release(&process_table_slock);
 
+  /* Wake up all sleeping parents. Can it be more than one? */
+  sleepq_wake_all((void*)pid);
+
   /* Before calling thread finish, process_finish must do:
    * vm_destroy_pagetable(thr->pagetable);
    * thr->pagetable = NULL;
@@ -337,8 +340,8 @@ void process_finish(int retval) {
   thread_get_current_thread_entry()->pagetable = NULL;
 
   /* spinlock_release(&thread_table_slock);*/
-
   _interrupt_set_state(intr_status);
+
   thread_finish();
 }
 
