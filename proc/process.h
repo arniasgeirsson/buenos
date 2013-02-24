@@ -48,14 +48,12 @@ void process_start(const char *executable);
 
 #define PROCESS_MAX_PROCESSES 32
 
-#define MAX_FILE_NAME = 32;
+#define MAX_FILE_NAME 32
 
-typedef enum {RUNNING, WAITING, ZOMBIE} process_state_t;
+typedef enum {RUNNING, WAITING, ZOMBIE} process_state_t; /* Sleeping? */
 
 typedef struct {
-  /* STUB: Put something here. */
-  int dummy; /* Remove this. */
-  char executable[MAX_FILE_NAME];
+  char execu[MAX_FILE_NAME];
   process_state_t process_state;
   process_id_t process_id;
 } process_control_block_t;

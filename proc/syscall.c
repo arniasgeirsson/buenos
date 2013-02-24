@@ -96,6 +96,23 @@ int syscall_read(int fhandle, void *buffer, int length){
   return bytes;
 }
 
+int syscall_exec(const char *filename)
+{
+  filename = filename;
+  return 0;
+}
+
+void syscall_exit(int retval)
+{
+  retval = retval;
+}
+
+int syscall_join(int pid)
+{
+  pid = pid;
+  return 0;
+}
+
 /**
  * Handle system calls. Interrupts are enabled when this function is
  * called.
@@ -127,6 +144,12 @@ void syscall_handle(context_t *user_context)
       syscall_read(FILEHANDLE_STDIN, 
 		   (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
 		   (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
+      break;
+    case SYSCALL_EXEC:
+      break;
+    case SYSCALL_EXIT:
+      break;
+    case SYSCALL_JOIN:
       break;
     default: 
       KERNEL_PANIC("Unhandled system call\n");

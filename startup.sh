@@ -5,8 +5,8 @@ make
 cd ..
 
 util/tfstool create fyams.harddisk 2048 disk1
-util/tfstool write fyams.harddisk tests/readwrite readwrite
-yams buenos 'initprog=[disk1]readwrite'
+util/tfstool write fyams.harddisk tests/processTest processTest
+yams buenos 'initprog=[disk1]processTest'
 
 make clean
 cd tests/
