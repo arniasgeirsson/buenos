@@ -320,9 +320,12 @@ void process_finish(int retval) {
   /*spinlock_acquire(&thread_table_slock);*/
 
   pid = thread_get_current_thread_entry()->process_id;
+ 
+  /* Only change the state, to zombie, then let process_join do the cleaning? */
+
   /* process_table[pid].executable = ""; */
   process_table[pid].process_state = ZOMBIE;
-  process_table[pid].process_id = -1;
+  /* process_table[pid].process_id = -1; */ 
   process_table[pid].sleeps_on = 0;
 
   spinlock_release(&process_table_slock);
@@ -346,15 +349,47 @@ void process_finish(int retval) {
 }
 
 int process_join(process_id_t pid) {
-  pid=pid;
-
   /* Look pid up in table, if pid exists,
    * make sure it is a child of this process aswell,
    * wait/spin/sleep (use buenos sleep queues) until it dies,
    * and remove it from the table, when it returns.
    * Set state to running (?) */
-  KERNEL_PANIC("Not implemented.");
-  return 0; /* Dummy */
+
+  KERNEL_ASSERT(pid >= 0); /* Or is that too strict? */
+
+  interrupt_status_t intr_status;
+
+  intr_status = _interrupt_disable();
+  spinlock_acquire(&process_table_slock);
+
+  if (process_table[pid].process_id == -1) return -1; /* Process does not exist. */
+
+  /* Check that is is a child process, otherwise also return error(-1). */
+
+  if (process_table[pid].process_state == ZOMBIE) goto isZombie; /* Hmm, vi kan vel
+								  ikke komme her ned
+								 hvis den er en zombie
+								 for så er pid vel også
+								 -1 ? */
+  sleepq_add((void*)pid);
+
+  spinlock_release(&process_table_slock);
+  _interrupt_set_state(intr_status);
+  
+  thread_switch();
+
+  intr_status = _interrupt_disable();
+  spinlock_acquire(&process_table_slock);
+  isZombie:
+  /* process_table[pid].executable = ""; */ /* Doesn't really matter? */
+  process_table[pid].process_state = FREE; /* Doesn't really matter? */
+  process_table[pid].process_id = -1; /* Only thing that really matters? */
+  process_table[pid].sleeps_on = 0; /* Doesn't really matter? */
+
+  spinlock_release(&process_table_slock);
+  _interrupt_set_state(intr_status);
+
+  return 1; /* What to return? */
 }
 
 
