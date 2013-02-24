@@ -95,6 +95,8 @@ void thread_goto_userland(context_t *usercontext);
 
 void thread_finish(void);
 
+/* Is used in process_spawn to set the process_id of the thread. */
+thread_table_t *thread_get_thread_entry(TID_t t);
 
 #define USERLAND_ENABLE_BIT 0x00000010
 

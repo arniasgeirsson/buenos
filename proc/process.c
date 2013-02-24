@@ -44,6 +44,7 @@
 #include "drivers/yams.h"
 #include "vm/vm.h"
 #include "vm/pagepool.h"
+#include "kernel/spinlock.h"
 
 /** @name Process startup
  *
@@ -51,6 +52,9 @@
  */
 
 process_control_block_t process_table[PROCESS_MAX_PROCESSES];
+
+spinlock_t process_table_slock;
+
 
 /**
  * Starts one userland process. The thread calling this function will
@@ -64,7 +68,8 @@ process_control_block_t process_table[PROCESS_MAX_PROCESSES];
  * @executable The name of the executable to be run in the userland
  * process
  */
-void process_start(const char *executable)
+/*void process_start(const char *executable)*/
+void process_start(process_id_t pid)
 {
     thread_table_t *my_entry;
     pagetable_t *pagetable;
@@ -77,7 +82,19 @@ void process_start(const char *executable)
     int i;
 
     interrupt_status_t intr_status;
+    const char *executable;
+    
+    KERNEL_ASSERT(pid >= 0);
+    KERNEL_ASSERT(pid < PROCESS_MAX_PROCESSES);
 
+    intr_status = _interrupt_disable();
+    spinlock_acquire(&process_table_slock);
+
+    executable = process_get_process_entry(pid)->executable;
+
+    spinlock_release(&process_table_slock);
+    _interrupt_set_state(intr_status);
+    kprintf("Process_start found this executable: %s\n", executable);
     /* Is used by process_spawn.
      * This must take a pid instead of string, it can the look
      * up in the process_table to get the executable. */
@@ -194,11 +211,24 @@ void process_start(const char *executable)
 
 void process_init() {
   /* Initialize the process table, fill it with empty entries. */
-  KERNEL_PANIC("Not implemented.");
+  int i;
+  spinlock_reset(&process_table_slock);
+
+  for (i=0; i < PROCESS_MAX_PROCESSES; i++)
+  {
+    /* process_table[i].executable = "";  Nedded ?*/
+    process_table[i].process_state = FREE;
+    process_table[i].process_id = -1;
+    process_table[i].sleeps_on = 0;
+  }
+}
+
+void process_help_spawn(uint32_t arg)
+{
+  process_start((process_id_t)arg);
 }
 
 process_id_t process_spawn(const char *executable) {
-  executable = executable;
   /* Check if there is room for one more process
    * in the process table, if there is room:
    * take that spot, init process, mark as child of this
@@ -206,9 +236,71 @@ process_id_t process_spawn(const char *executable) {
    * Must call process_start.*/
 
   /* The pid is the process's index in the process_table. */
+  
+  int i;
+  int k;
+  interrupt_status_t intr_status;
+  TID_t tid;
+  kprintf("Trying to spawn process with executable: %s\n", (char*)executable);
+  /* We must first disable interrups and acquire the process_table lock. */
+  intr_status = _interrupt_disable();
+  spinlock_acquire(&process_table_slock);
 
-  KERNEL_PANIC("Not implemented.");
-  return 0; /* Dummy */
+  /* Find empty spot in process_table. */
+  for (i=0; i < PROCESS_MAX_PROCESSES; i++)
+  {
+    if (process_table[i].process_id == -1) break;
+  }
+  if (i == PROCESS_MAX_PROCESSES) /* The process_table is filled. */
+  {
+    spinlock_release(&process_table_slock);
+    _interrupt_set_state(intr_status);
+    return -1;
+  }
+
+  /* i contains the new process's process_id and the index for process_table. */
+  /* process_table[i].executable = executable;*/
+  for (k=0; k < PROCESS_MAX_PROCESSES; k++)
+  {
+    process_table[i].executable[k] = *executable;
+    if (*executable == '\0') break;
+    executable++;
+  }
+  /* executable = executable;*/
+  process_table[i].process_state = READY;
+  process_table[i].process_id = i;
+  process_table[i].sleeps_on = 0;
+
+  /* Enable interrups again, and release the process_table lock. */
+  spinlock_release(&process_table_slock);
+  _interrupt_set_state(intr_status);
+
+  /* This is still parent process, so we must create new thread and let 
+   * the spawned process run in that, and let that call process_start. */
+
+  /* Create new thread, give it the new process, run process_start. */
+  kprintf("made it here1113333331111122\n");
+  if (i == 0) /* If i is 0, then I assume it is the initproc.
+		 And therefore should not run in a new thread. */
+  {
+    process_start(i);
+  }
+  kprintf("made it here1111111122\n");
+  tid = thread_create(process_help_spawn, (uint32_t)i);
+  /* set process variable in the new process? */
+
+  KERNEL_ASSERT(tid >= 0); /* If no thread could be created-> full thread_table->
+			   * tid is negative, prob'ly should use something more
+			   * relaxed than KERNEL_ASSERT. */
+
+  /*spinlock_acquire(&thread_table_slock);*/
+  thread_get_thread_entry(tid)->process_id = i;
+  /* spinlock_release(&thread_table_slock);*/
+
+  thread_run(tid); /* Rigtig måde at gøre det på? */
+  /* thread_switch();*/ /* Rigtig måde at gøre det på? Tror ikke man skal switche. */
+
+  return i;
 }
 
 /* Stop the process and the thread it runs in. Sets the return value as well */
@@ -219,13 +311,35 @@ void process_finish(int retval) {
    * Wake up any joined threads.
    * Set state to zombie. */
 
+  interrupt_status_t intr_status;
+  process_id_t pid;
+
+  intr_status = _interrupt_disable();
+
+  spinlock_acquire(&process_table_slock);
+  /*spinlock_acquire(&thread_table_slock);*/
+
+  pid = thread_get_current_thread_entry()->process_id;
+  /* process_table[pid].executable = ""; */
+  process_table[pid].process_state = ZOMBIE;
+  process_table[pid].process_id = -1;
+  process_table[pid].sleeps_on = 0;
+
+  spinlock_release(&process_table_slock);
 
   /* Before calling thread finish, process_finish must do:
    * vm_destroy_pagetable(thr->pagetable);
    * thr->pagetable = NULL;
    * Where thr is the kernel thread this process is executing on.
    * The two lines cleans on virtuel memory used. */
-  KERNEL_PANIC("Not implemented.");
+
+  vm_destroy_pagetable(thread_get_current_thread_entry()->pagetable);
+  thread_get_current_thread_entry()->pagetable = NULL;
+
+  /* spinlock_release(&thread_table_slock);*/
+
+  _interrupt_set_state(intr_status);
+  thread_finish();
 }
 
 int process_join(process_id_t pid) {

@@ -37,9 +37,12 @@
 #ifndef BUENOS_PROC_PROCESS
 #define BUENOS_PROC_PROCESS
 
+#include "lib/types.h"
+
 typedef int process_id_t;
 
-void process_start(const char *executable);
+/*void process_start(const char *executable);*/
+void process_start(process_id_t pid);
 
 #define USERLAND_STACK_TOP 0x7fffeffc
 
@@ -50,12 +53,13 @@ void process_start(const char *executable);
 
 #define MAX_FILE_NAME 32
 
-typedef enum {RUNNING, WAITING, ZOMBIE} process_state_t; /* Sleeping? */
+typedef enum {RUNNING, WAITING, ZOMBIE, FREE, READY} process_state_t; /* Sleeping? */
 
 typedef struct {
-  char execu[MAX_FILE_NAME];
+  char executable[MAX_FILE_NAME];
   process_state_t process_state;
   process_id_t process_id;
+  uint32_t sleeps_on; /* ? */
 } process_control_block_t;
 
 /* Initialize the process table.  This must be called during kernel
@@ -78,5 +82,8 @@ process_id_t process_get_current_process(void);
 
 /* Return PCB of current process. */
 process_control_block_t *process_get_current_process_entry(void);
+
+/* Return PCB of a given process */
+process_control_block_t *process_get_process_entry(process_id_t pid);
 
 #endif

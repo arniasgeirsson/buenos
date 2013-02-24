@@ -323,4 +323,10 @@ void thread_finish(void)
     KERNEL_PANIC("thread_finish(): thread was not destroyed");
 }
 
+thread_table_t *thread_get_thread_entry(TID_t t)
+{
+    return &thread_table[t];
+}
+
+
 /** @} */

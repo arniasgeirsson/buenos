@@ -42,6 +42,8 @@
 #include "drivers/device.h"
 #include "drivers/yams.h"
 #include "drivers/gcd.h"
+#include "lib/debug.h"
+#include "proc/process.h"
 
 int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
@@ -98,19 +100,19 @@ int syscall_read(int fhandle, void *buffer, int length){
 
 int syscall_exec(const char *filename)
 {
-  filename = filename;
-  return 0;
+  kprintf("Sycall_exec called with filename: %s\n", (char*)filename);
+  return process_spawn(filename);
 }
 
 void syscall_exit(int retval)
 {
-  retval = retval;
+  retval = retval; /* How to update retval? */
+  process_finish(retval);
 }
 
 int syscall_join(int pid)
 {
-  pid = pid;
-  return 0;
+  return process_join(pid);
 }
 
 /**
@@ -146,10 +148,13 @@ void syscall_handle(context_t *user_context)
 		   (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
       break;
     case SYSCALL_EXEC:
+      syscall_exec((char*)user_context->cpu_regs[MIPS_REGISTER_A1]);
       break;
     case SYSCALL_EXIT:
+      syscall_exit((int)user_context->cpu_regs[MIPS_REGISTER_A1]);
       break;
     case SYSCALL_JOIN:
+      syscall_join((int)user_context->cpu_regs[MIPS_REGISTER_A1]);
       break;
     default: 
       KERNEL_PANIC("Unhandled system call\n");
