@@ -97,6 +97,7 @@ void process_start(process_id_t pid)
     spinlock_release(&process_table_slock);
     _interrupt_set_state(intr_status);
     DEBUG("process_Debug","Process_start found this executable: %s\n", executable);
+
     /* Is used by process_spawn.
      * This must take a pid instead of string, it can the look
      * up in the process_table to get the executable. */
@@ -295,9 +296,9 @@ process_id_t process_spawn(const char *executable) {
 			   * tid is negative, prob'ly should use something more
 			   * relaxed than KERNEL_ASSERT. */
 
-  /*spinlock_acquire(&thread_table_slock);*/
+  spinlock_acquire(thread_get_slock());
   thread_get_thread_entry(tid)->process_id = i;
-  /* spinlock_release(&thread_table_slock);*/
+  spinlock_release(thread_get_slock());
 
   thread_run(tid); /* Rigtig måde at gøre det på? */
   /* thread_switch();*/ /* Rigtig måde at gøre det på? Tror ikke man skal switche. */
@@ -318,7 +319,7 @@ void process_finish(int retval) {
   intr_status = _interrupt_disable();
 
   spinlock_acquire(&process_table_slock);
-  /*spinlock_acquire(&thread_table_slock);*/
+  spinlock_acquire(thread_get_slock());
 
   pid = thread_get_current_thread_entry()->process_id;
  
@@ -345,7 +346,7 @@ void process_finish(int retval) {
   vm_destroy_pagetable(thread_get_current_thread_entry()->pagetable);
   thread_get_current_thread_entry()->pagetable = NULL;
 
-  /* spinlock_release(&thread_table_slock);*/
+  spinlock_release(thread_get_slock());
   _interrupt_set_state(intr_status);
 
   thread_finish();
