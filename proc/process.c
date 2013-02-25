@@ -46,6 +46,7 @@
 #include "vm/pagepool.h"
 #include "kernel/spinlock.h"
 #include "kernel/sleepq.h"
+#include "lib/debug.h"
 
 /** @name Process startup
  *
@@ -95,7 +96,7 @@ void process_start(process_id_t pid)
 
     spinlock_release(&process_table_slock);
     _interrupt_set_state(intr_status);
-    kprintf("Process_start found this executable: %s\n", executable);
+    DEBUG("process_Debug","Process_start found this executable: %s\n", executable);
     /* Is used by process_spawn.
      * This must take a pid instead of string, it can the look
      * up in the process_table to get the executable. */
@@ -242,7 +243,7 @@ process_id_t process_spawn(const char *executable) {
   int k;
   interrupt_status_t intr_status;
   TID_t tid;
-  kprintf("Trying to spawn process with executable: %s\n", (char*)executable);
+  DEBUG("process_Debug","Trying to spawn process with executable: %s\n", (char*)executable);
   /* We must first disable interrups and acquire the process_table lock. */
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_table_slock);
@@ -280,13 +281,13 @@ process_id_t process_spawn(const char *executable) {
    * the spawned process run in that, and let that call process_start. */
 
   /* Create new thread, give it the new process, run process_start. */
-  kprintf("made it here1113333331111122\n");
+  DEBUG("process_Debug", "made it here version 2.0!\n");
   if (i == 0) /* If i is 0, then I assume it is the initproc.
 		 And therefore should not run in a new thread. */
   {
     process_start(i);
   }
-  kprintf("made it here1111111122\n");
+  DEBUG("process_Debug", "made it here version 2.5!\n");
   tid = thread_create(process_help_spawn, (uint32_t)i);
   /* set process variable in the new process? */
 
@@ -330,8 +331,10 @@ void process_finish(int retval) {
 
   spinlock_release(&process_table_slock);
 
+  DEBUG("process_Debug", "process_finish: trying to wake all on %d\n", pid);
   /* Wake up all sleeping parents. Can it be more than one? */
-  sleepq_wake_all((void*)pid);
+  /*sleepq_wake_all((void*)pid);*/
+  sleepq_wake((void*)pid);
 
   /* Before calling thread finish, process_finish must do:
    * vm_destroy_pagetable(thr->pagetable);
@@ -356,12 +359,12 @@ int process_join(process_id_t pid) {
    * Set state to running (?) */
 
   KERNEL_ASSERT(pid >= 0); /* Or is that too strict? */
-
+  KERNEL_ASSERT(pid < PROCESS_MAX_PROCESSES); /* Too strict ? */
   interrupt_status_t intr_status;
 
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_table_slock);
-
+  DEBUG("process_Debug", "process_join: trying to join pid: %d\n", pid);
   if (process_table[pid].process_id == -1) return -1; /* Process does not exist. */
 
   /* Check that is is a child process, otherwise also return error(-1). */
@@ -371,13 +374,15 @@ int process_join(process_id_t pid) {
 								 hvis den er en zombie
 								 for så er pid vel også
 								 -1 ? */
+  DEBUG("process_Debug", "Process_join: just before sleeping.\n");
   sleepq_add((void*)pid);
-
+  DEBUG("process_Debug", "Process_join: just after sleeping.\n");
   spinlock_release(&process_table_slock);
+  DEBUG("process_Debug", "released lock \n");
   _interrupt_set_state(intr_status);
-  
+  DEBUG("process_Debug", "Process_join: just before thread_switch.\n");
   thread_switch();
-
+  DEBUG("process_Debug", "Process_join: just after thread_switch.\n");
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_table_slock);
   isZombie:

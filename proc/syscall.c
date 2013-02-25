@@ -100,19 +100,25 @@ int syscall_read(int fhandle, void *buffer, int length){
 
 int syscall_exec(const char *filename)
 {
-  kprintf("Sycall_exec called with filename: %s\n", (char*)filename);
-  return process_spawn(filename);
+  DEBUG("process_Debug","Sycall_exec called with filename: %s\n", (char*)filename);
+  int npid = process_spawn(filename);
+  DEBUG("process_Debug", "syscall_exec: new pid = %d\n",npid);
+  return npid;
 }
 
 void syscall_exit(int retval)
 {
-  retval = retval; /* How to update retval? */
+  DEBUG("process_Debug","syscall_exit: retval = %d\n", retval);
+  retval = retval; /* How to update retval? See hw.c from buenos-ex2. */
   process_finish(retval);
 }
 
 int syscall_join(int pid)
 {
-  return process_join(pid);
+  DEBUG("process_Debug", "syscall_join: pid is = %d\n",pid);
+  int pidjoin = process_join(pid);
+  DEBUG("process_Debug","syscall_join: pidjoin = %d\n",pidjoin);
+  return pidjoin;
 }
 
 /**
@@ -148,13 +154,18 @@ void syscall_handle(context_t *user_context)
 		   (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
       break;
     case SYSCALL_EXEC:
-      syscall_exec((char*)user_context->cpu_regs[MIPS_REGISTER_A1]);
+      user_context->cpu_regs[MIPS_REGISTER_V0] = syscall_exec((char*)user_context->cpu_regs[MIPS_REGISTER_A1]);
       break;
     case SYSCALL_EXIT:
       syscall_exit((int)user_context->cpu_regs[MIPS_REGISTER_A1]);
       break;
     case SYSCALL_JOIN:
-      syscall_join((int)user_context->cpu_regs[MIPS_REGISTER_A1]);
+      DEBUG("process_Debug", "syscall join!!!\n");
+      int a1 = (int)user_context->cpu_regs[MIPS_REGISTER_A1];
+      int a2 = (int)user_context->cpu_regs[MIPS_REGISTER_A2];
+      int a3 = (int)user_context->cpu_regs[MIPS_REGISTER_A3];
+      DEBUG("process_Debug", "a1 = %d, a2 = %d, a3 = %d\n",a1,a2,a3);
+      user_context->cpu_regs[MIPS_REGISTER_V0] = syscall_join((int)user_context->cpu_regs[MIPS_REGISTER_A1]);
       break;
     default: 
       KERNEL_PANIC("Unhandled system call\n");

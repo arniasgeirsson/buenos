@@ -41,7 +41,7 @@
 
 #include "proc/syscall.h"
 #include "tests/lib.h"
-
+#include "lib/debug.h"
 
 /* Halt the system (sync disks and power off). This function will
  * never return. 
@@ -90,6 +90,7 @@ void syscall_exit(int retval)
  */
 int syscall_join(int pid)
 {
+  syscall_write(1, "hello##########\n",16);
     return (int)_syscall(SYSCALL_JOIN, (uint32_t)pid, 0, 0);
 }
 
