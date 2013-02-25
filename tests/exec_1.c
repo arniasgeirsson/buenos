@@ -14,7 +14,7 @@ int main(void)
   ret = syscall_join(child);
   syscall_write(1,"Three\n",6);
 
-  child = syscall_exec(invalidprog);
+  /* child = syscall_exec(invalidprog);*/
 
   child = child;
   ret = ret;

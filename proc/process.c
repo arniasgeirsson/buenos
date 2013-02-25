@@ -220,9 +220,9 @@ void process_init() {
   for (i=0; i < PROCESS_MAX_PROCESSES; i++)
   {
     /* process_table[i].executable = "";  Nedded ?*/
-    process_table[i].process_state = FREE;
+    process_table[i].process_state = WAITING;
     process_table[i].process_id = -1;
-    process_table[i].sleeps_on = 0;
+    process_table[i].retval = 0;
   }
 }
 
@@ -263,16 +263,16 @@ process_id_t process_spawn(const char *executable) {
 
   /* i contains the new process's process_id and the index for process_table. */
   /* process_table[i].executable = executable;*/
-  for (k=0; k < PROCESS_MAX_PROCESSES; k++)
+  for (k=0; k < MAX_FILE_NAME; k++)
   {
     process_table[i].executable[k] = *executable;
     if (*executable == '\0') break;
     executable++;
   }
   /* executable = executable;*/
-  process_table[i].process_state = READY;
+  process_table[i].process_state = RUNNING;
   process_table[i].process_id = i;
-  process_table[i].sleeps_on = 0;
+  process_table[i].retval = 0;
 
   /* Enable interrups again, and release the process_table lock. */
   spinlock_release(&process_table_slock);
@@ -296,9 +296,11 @@ process_id_t process_spawn(const char *executable) {
 			   * tid is negative, prob'ly should use something more
 			   * relaxed than KERNEL_ASSERT. */
 
+  intr_status = _interrupt_disable();
   spinlock_acquire(thread_get_slock());
   thread_get_thread_entry(tid)->process_id = i;
   spinlock_release(thread_get_slock());
+  _interrupt_set_state(intr_status);
 
   thread_run(tid); /* Rigtig måde at gøre det på? */
   /* thread_switch();*/ /* Rigtig måde at gøre det på? Tror ikke man skal switche. */
@@ -307,7 +309,6 @@ process_id_t process_spawn(const char *executable) {
 }
 
 void process_finish(int retval) {
-  retval=retval;
   /* Stop the process and the thread it runs in.
    * Set the return value, retval.
    * Wake up any joined threads.
@@ -328,7 +329,7 @@ void process_finish(int retval) {
   /* process_table[pid].executable = ""; */
   process_table[pid].process_state = ZOMBIE;
   /* process_table[pid].process_id = -1; */ 
-  process_table[pid].sleeps_on = 0;
+  process_table[pid].retval = retval;
 
   spinlock_release(&process_table_slock);
 
@@ -359,9 +360,10 @@ int process_join(process_id_t pid) {
    * and remove it from the table, when it returns.
    * Set state to running (?) */
 
-  KERNEL_ASSERT(pid >= 0); /* Or is that too strict? */
-  KERNEL_ASSERT(pid < PROCESS_MAX_PROCESSES); /* Too strict ? */
+  /* KERNEL_ASSERT(pid >= 0);*/ /* Or is that too strict? */
+  /* KERNEL_ASSERT(pid < PROCESS_MAX_PROCESSES);*/ /* Too strict ? */
   interrupt_status_t intr_status;
+  int retval;
 
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_table_slock);
@@ -375,6 +377,7 @@ int process_join(process_id_t pid) {
 								 hvis den er en zombie
 								 for så er pid vel også
 								 -1 ? */
+  process_table[process_get_current_process()].process_state = WAITING;
   DEBUG("process_Debug", "Process_join: just before sleeping.\n");
   sleepq_add((void*)pid);
   DEBUG("process_Debug", "Process_join: just after sleeping.\n");
@@ -386,16 +389,19 @@ int process_join(process_id_t pid) {
   DEBUG("process_Debug", "Process_join: just after thread_switch.\n");
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_table_slock);
+
+  process_table[process_get_current_process()].process_state = RUNNING;
   isZombie:
+  retval = process_table[pid].retval;
   /* process_table[pid].executable = ""; */ /* Doesn't really matter? */
-  process_table[pid].process_state = FREE; /* Doesn't really matter? */
+  process_table[pid].process_state = WAITING; /* Doesn't really matter? */
   process_table[pid].process_id = -1; /* Only thing that really matters? */
-  process_table[pid].sleeps_on = 0; /* Doesn't really matter? */
+  process_table[pid].retval = 0; /* Doesn't really matter? */
 
   spinlock_release(&process_table_slock);
   _interrupt_set_state(intr_status);
 
-  return 1; /* What to return? */
+  return retval;
 }
 
 

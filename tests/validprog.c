@@ -11,7 +11,7 @@ int main(void)
   str[1] = '\n';
   str[2] = '\0';
   
-  syscall_join(syscall_exec(validprog));
+  /* syscall_join(syscall_exec(validprog));*/
   for (i=0; i <= 10; i++)
   {
     str[0] = (char)i+36;
