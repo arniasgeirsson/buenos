@@ -46,10 +46,10 @@
 int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
-  int bytes = 0;
-  int i;
 
-  dev = device_get(YAMS_TYPECODE_TTY, fhandle - fhandle);
+  fhandle = fhandle;
+
+  dev = device_get(YAMS_TYPECODE_TTY, 0);
   if(dev == NULL)
     return -1;
 
@@ -57,19 +57,14 @@ int syscall_write(int fhandle, const void *buffer, int length){
   if(gcd == NULL)
     return -1;
 
-  for(i = 0; i < length; i++){
-    if(*(char*)(buffer + i) == '\0')      
-      break;
-    bytes += gcd->write(gcd, buffer + i, 1);
-  }
-  return bytes;
+  return gcd->write(gcd, buffer, length);
 }
 
 int syscall_read(int fhandle, void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
-  int i;
-  int bytes = 0;
+  
+  fhandle = fhandle;
 
   dev = device_get(YAMS_TYPECODE_TTY, fhandle);
   if(dev == NULL)
@@ -79,21 +74,7 @@ int syscall_read(int fhandle, void *buffer, int length){
   if(gcd == NULL)
     return -1;
 
-  gcd->write(gcd, (void*)"> ", 2);
-
-  for(i = 0; i < length-1; i++){
-    bytes += gcd->read(gcd, buffer + i, length);
-    
-    if(*(char*)(buffer + i) == '\r')      
-      break;
-
-    gcd->write(gcd, buffer + i, 1);
-  }
-
-  ((char*)buffer)[i] = '\0';
-   gcd->write(gcd, (void*)"\n", 1);
-
-  return bytes;
+  return gcd->read(gcd, buffer, length);
 }
 
 /**
@@ -119,12 +100,12 @@ void syscall_handle(context_t *user_context)
       halt_kernel();
       break;
     case SYSCALL_WRITE:
-      syscall_write(FILEHANDLE_STDOUT, 
+      syscall_write((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
 		    (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
 		    (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
       break;
     case SYSCALL_READ:
-      syscall_read(FILEHANDLE_STDIN, 
+      syscall_read((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
 		   (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
 		   (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
       break;
