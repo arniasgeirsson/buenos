@@ -90,7 +90,6 @@ void syscall_exit(int retval)
  */
 int syscall_join(int pid)
 {
-  syscall_write(1, "hello##########\n",16);
     return (int)_syscall(SYSCALL_JOIN, (uint32_t)pid, 0, 0);
 }
 

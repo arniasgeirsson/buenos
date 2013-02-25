@@ -53,14 +53,13 @@ void process_start(process_id_t pid);
 
 #define MAX_FILE_NAME 32
 
-typedef enum {RUNNING, WAITING, ZOMBIE, FREE, READY} process_state_t;
+typedef enum {RUNNING, WAITING, ZOMBIE} process_state_t;
 
 typedef struct {
   char executable[MAX_FILE_NAME];
   process_state_t process_state;
   process_id_t process_id;
-  /* int retval;*/
-  uint32_t sleeps_on;
+  int retval;
 } process_control_block_t;
 
 /* Initialize the process table.  This must be called during kernel
