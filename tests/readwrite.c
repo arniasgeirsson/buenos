@@ -46,7 +46,7 @@ int main(void)
   syscall_write(1, (void*)"You wrote: ", 11);
   syscall_write(1, buffer1, 50);
   syscall_write(1, (void*)"\n", 1);
-  syscall_write(1, (void*)"--- Write-Teststring 2 ---\n", 40);  
+  syscall_write(1, (void*)"--- Write-Teststring 2 ---\n*testtesttest*", 27);  
   
   syscall_halt();
   return 0;
