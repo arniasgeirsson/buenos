@@ -212,8 +212,8 @@ void convertIntToString(int val, char *str)
 
   int a;
   if (val == 0) {
-    str = "0";
-    return;
+    len++;
+    r_str[len] = '0';
   } else if (val < 0) {
     tmp = tmp * -1;
   }
