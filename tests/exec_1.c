@@ -12,19 +12,12 @@ int main(void)
   wrapper_writeString((char*)validprog);
   wrapper_writeString("\n");
   child = syscall_exec(validprog);
-  wrapper_writeString("2-exec_1: Creating child: ");;
-  wrapper_writeInt(child);
-  wrapper_writeString(", trying to join it.\n");
+  wrapper_writeMlt("2-exec_1: Creating child: ",child,", trying to join it.\n");
   ret = syscall_join(child);
-  wrapper_writeString("3-exec_1: Return value from joined process was: ");
-  wrapper_writeInt(ret);
-  wrapper_writeString("\n");
+  wrapper_writeMlt("3-exec_1: Return value from joined process was: ",ret,"\n");
 
   /* child = syscall_exec(invalidprog);*/ /* Is first caught in process_start. */
-  
 
-  child = child;
-  ret = ret;
   syscall_halt();
   return 0;
 }

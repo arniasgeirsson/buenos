@@ -72,5 +72,6 @@ int stringLength(char *str);
 void convertIntToString(int val, char *str);
 void wrapper_writeString(char *str);
 void wrapper_writeInt(int val);
+void wrapper_writeMlt(char *str, int val, char *str2);
 
 #endif /* BUENOS_USERLAND_LIB_H */

@@ -259,3 +259,10 @@ void wrapper_writeInt(int val)
   convertIntToString(val,str);
   wrapper_writeString(str);
 }
+
+void wrapper_writeMlt(char *str, int val, char *str2)
+{
+  wrapper_writeString(str);
+  wrapper_writeInt(val);
+  wrapper_writeString(str2);
+}
