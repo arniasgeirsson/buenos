@@ -18,24 +18,28 @@ int main(void)
   wrapper_writeString("\n");
 
   child = syscall_exec(validprog);
+  
+  /* Check if any error happened. */
   if (child < 0) {
-    wrapper_writeMlt("Error: Exec_1, created child with error: ",child,"! Halting.\n");
-    syscall_halt();
+    wrapper_writeMlt("Error: Created child with error: ",child,"!\n");
   }
-  wrapper_writeMlt("2-exec_1: Creating child: ",child,", trying to join it.\n");
+  wrapper_writeMlt("2-exec_1: Created child: ",child,", trying to join it.\n");
 
+  /* Try and join the child. */
   ret = syscall_join(child);
 
   wrapper_writeMlt("3-exec_1: Return value from joined process was: ",ret,"\n");
 
-  /* child = syscall_exec(invalidprog);*/ /* Is first caught in process_start. */
+  /* Try and create more processes than allowed. */
   for (i=0; i < max_processes; i++) {
     children[i] = syscall_exec(prog1);
+    /* Check if any error happened. */
     if (children[i] < 0) {
       wrapper_writeMlt("Error: Created child with error: ",children[i],"!\n");
     }
   }
 
+  /* Wait for all the created processes to be finished before quiting. */
   for (i=0; i < max_processes; i++) {
     syscall_join(children[i]);
   }

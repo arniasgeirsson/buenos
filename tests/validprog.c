@@ -1,12 +1,13 @@
 #include "tests/lib.h"
 
+/* Writes 10 integers to the console, then calls exit with succes. */
 int main(void)
 {
   int i;
 
   wrapper_writeString("Hello, I am validprog, I will count to ten!\n");
   
-  for (i=1; i <= 10; i++)
+  for (i=1; i < 11; i++)
   {
     wrapper_writeMlt("",i,"\n");
   }
