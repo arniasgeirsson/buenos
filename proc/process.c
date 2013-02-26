@@ -47,6 +47,7 @@
 #include "kernel/spinlock.h"
 #include "kernel/sleepq.h"
 #include "lib/debug.h"
+#include "lib/libc.h"
 
 /** @name Process startup
  *
@@ -217,6 +218,15 @@ void process_start(process_id_t pid)
     KERNEL_PANIC("thread_goto_userland failed.");
 }
 
+void process_mark_process_table_entry_empty(process_id_t i)
+{
+  stringcopy(process_table[i].executable, "", MAX_FILE_NAME);
+  process_table[i].process_state = WAITING;
+  process_table[i].process_id = -1;
+  process_table[i].retval = 0;
+  process_table[i].parent_pid = -1;
+}
+
 /* Initialize the process_table spinlock and the process_table.
    Must be called during kernel initialization. */
 void process_init() {
@@ -229,10 +239,7 @@ void process_init() {
      An empty entry is denoted by that process_id is -1. */
   for (i=0; i < PROCESS_MAX_PROCESSES; i++)
   {
-    /* process_table[i].executable = "";  Nedded ?*/ /* Hvad er en 'empty' string? */
-    process_table[i].process_state = WAITING;
-    process_table[i].process_id = -1;
-    process_table[i].retval = 0;
+    process_mark_process_table_entry_empty(i);
   }
 }
 
@@ -250,7 +257,6 @@ void process_help_spawn(uint32_t arg)
 	  -2 if no thread could be created. */
 process_id_t process_spawn(const char *executable) {
   int i;
-  int k;
   interrupt_status_t intr_status;
   TID_t tid;
 
@@ -279,16 +285,13 @@ process_id_t process_spawn(const char *executable) {
      which is also the index for in the process_table. */
 
   /* Copy the executable string into the process_control_block. */
-  for (k=0; k < MAX_FILE_NAME; k++)
-  {
-    process_table[i].executable[k] = *executable;
-    if (*executable == '\0') break;
-    executable++;
-  }
+  stringcopy(process_table[i].executable, executable, MAX_FILE_NAME);
+  
   /* Set the state, process_id and retval. */
   process_table[i].process_state = RUNNING;
   process_table[i].process_id = i;
   process_table[i].retval = 0;
+  process_table[i].parent_pid = -1;
 
   /* Enable interrups again, and release the process_table lock. */
   spinlock_release(&process_table_slock);
@@ -301,6 +304,13 @@ process_id_t process_spawn(const char *executable) {
     and therefore should not run in a new thread. */
   if (i == 0)
   {
+    intr_status = _interrupt_disable();
+    spinlock_acquire(thread_get_slock());
+    
+    thread_get_current_thread_entry()->process_id = i;
+    
+    spinlock_release(thread_get_slock());
+    _interrupt_set_state(intr_status);
     process_start(i);
   }
 
@@ -314,10 +324,9 @@ process_id_t process_spawn(const char *executable) {
   {
     intr_status = _interrupt_disable();
     spinlock_acquire(&process_table_slock);
-    /*    process_table[i].executable = "" */ /* Empty string? */
-    process_table[i].process_state = WAITING;
-    process_table[i].process_id = -1;
-    process_table[i].retval = 0;
+
+    process_mark_process_table_entry_empty(i);
+
     spinlock_release(&process_table_slock);
     _interrupt_set_state(intr_status);
     return -2;
@@ -325,7 +334,9 @@ process_id_t process_spawn(const char *executable) {
 
   /* Here is where this process should mark the new one as a child process.
      Not above, where we 'initialized' the process_table entry, because
-     we shouldn't do it, if this is the first process. */
+     we shouldn't do it, if this is the first process, which will keep -1 as parent id. */
+  
+  process_table[i].parent_pid = process_get_current_process();
 
   /* Update the thread_block to contain its process_id. 
      Here we must disable interrupts again, and lock the
@@ -352,6 +363,7 @@ process_id_t process_spawn(const char *executable) {
 void process_finish(int retval) {
   interrupt_status_t intr_status;
   process_id_t pid;
+  int i;
 
   /* Disable interrupts and lock the process_table spinlock,
      and the thread_table spinlock. */
@@ -360,11 +372,25 @@ void process_finish(int retval) {
   spinlock_acquire(thread_get_slock());
 
   /* Get the process id of this process. */
-  pid = thread_get_current_thread_entry()->process_id;
- 
-  /* Set the state of this process to be ZOMBIE and set the return value. */
-  process_table[pid].process_state = ZOMBIE;
-  process_table[pid].retval = retval;
+  pid = process_get_current_process();
+
+  /* Here is where you should kill all your children. */
+  for (i=0; i < PROCESS_MAX_PROCESSES; i++) {
+    /* If process entry is child, kill it. */
+    if (process_table[i].parent_pid == pid) {
+      process_table[i].parent_pid = -1;
+      DEBUG("process_Debug", "+0+0+0+0+0+0+0+0\n");
+    }
+  }
+
+  if (process_table[pid].parent_pid == -1) {
+    /* We are parent-less. Meaning parent process has already finished.*/
+    process_mark_process_table_entry_empty(pid);
+  } else {
+    /* Set the state of this process to be ZOMBIE and set the return value. */
+    process_table[pid].process_state = ZOMBIE;
+    process_table[pid].retval = retval;
+  }
 
   /* Enable interrupts again, and release the process_table spinlock,
      and the thread_table spinloc. */
@@ -441,6 +467,12 @@ int process_join(process_id_t pid) {
 
    /* Here is where process_join should check if the process is a child process,
       of this process. If not then return -4. */
+   if (process_get_current_process() != process_table[pid].parent_pid)
+   {
+     spinlock_release(&process_table_slock);
+     _interrupt_set_state(intr_status);
+     return -4;
+   }
 
    /* Check if the process is already finished and therefore marked as a zombie,
       and if so don't go to sleep. */
@@ -472,10 +504,7 @@ int process_join(process_id_t pid) {
    retval = process_table[pid].retval;
 
    /* Mark the process_table entry to be empty. */
-   /* process_table[pid].executable = ""; */ /* Doesn't really matter? */
-   process_table[pid].process_state = WAITING; /* Doesn't really matter? */
-   process_table[pid].process_id = -1; /* Only thing that really matters? */
-   process_table[pid].retval = 0; /* Doesn't really matter? */
+    process_mark_process_table_entry_empty(pid);
    
    /* Release the thread_table spinlock and enable interrups once again. */
    spinlock_release(&process_table_slock);

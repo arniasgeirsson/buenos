@@ -60,6 +60,7 @@ typedef struct {
   process_state_t process_state;
   process_id_t process_id;
   int retval;
+  process_id_t parent_pid;
 } process_control_block_t;
 
 /* Initialize the process table.  This must be called during kernel
