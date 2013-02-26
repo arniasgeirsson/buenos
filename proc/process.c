@@ -218,8 +218,11 @@ void process_start(process_id_t pid)
     KERNEL_PANIC("thread_goto_userland failed.");
 }
 
+/* Marks a given entry in the process_table to be empty. */
 void process_mark_process_table_entry_empty(process_id_t i)
 {
+  /* What only really matters is that process_id is set to -1.
+     We just want to try and maintain a 'clean' table, and remove any trash. */
   stringcopy(process_table[i].executable, "", MAX_FILE_NAME);
   process_table[i].process_state = WAITING;
   process_table[i].process_id = -1;
@@ -377,9 +380,13 @@ void process_finish(int retval) {
   /* Here is where you should kill all your children. */
   for (i=0; i < PROCESS_MAX_PROCESSES; i++) {
     /* If process entry is child, kill it. */
-    if (process_table[i].parent_pid == pid) {
-      process_table[i].parent_pid = -1;
-      DEBUG("process_Debug", "+0+0+0+0+0+0+0+0\n");
+    if (process_table[i].process_id != -1 &&
+	process_table[i].parent_pid == pid) {
+      if (process_table[i].process_state == ZOMBIE) {
+	process_mark_process_table_entry_empty(i);
+      } else {   
+	process_table[i].parent_pid = -1;
+      }
     }
   }
 

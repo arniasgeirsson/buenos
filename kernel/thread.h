@@ -96,9 +96,10 @@ void thread_goto_userland(context_t *usercontext);
 
 void thread_finish(void);
 
-/* Is used in process_spawn to set the process_id of the thread. */
+/* Get the thread associated with a thread id t. */
 thread_table_t *thread_get_thread_entry(TID_t t);
-/* Is used by process to get the lock to lock and release the thread_table*/
+
+/* Get the spinlock used to lock the thread_table. */
 spinlock_t *thread_get_slock();
 
 #define USERLAND_ENABLE_BIT 0x00000010
