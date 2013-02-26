@@ -1,20 +1,17 @@
 #include "tests/lib.h"
 
-static const char validprog[] = "[disk1]hw";
-
 int main(void)
 {
   int i;
   char str[3];
 
-  syscall_write(1, "Hello, I am validprog, I will count to ten!\n",44);
+  syscall_write(1, "Hello, I am validprog, I will count to nine!\n",45);
   str[1] = '\n';
   str[2] = '\0';
   
-  /* syscall_join(syscall_exec(validprog));*/
-  for (i=0; i <= 10; i++)
+  for (i=0; i < 10; i++)
   {
-    str[0] = (char)i+36;
+    str[0] = (char)i+48;
     syscall_write(1,str,2);
   }
   syscall_write(1,"That is it! Goodbye\n",20);

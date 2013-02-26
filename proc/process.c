@@ -101,7 +101,7 @@ void process_start(process_id_t pid)
     spinlock_release(&process_table_slock);
     _interrupt_set_state(intr_status);
 
-    DEBUG("process_Debug","Process_start found this executable: %s\n", executable);
+    DEBUG("process_Debug","Process_start: found this executable: %s\n", executable);
 
     /* Is used by process_spawn.
      * This must take a pid instead of string, it can the look

@@ -183,3 +183,79 @@ int syscall_delete(const char *filename)
 {
     return (int)_syscall(SYSCALL_DELETE, (uint32_t)filename, 0, 0);
 }
+
+/* Helper for wrapper_writeInt, and convertIntToString. */
+int intLen(int val)
+{
+  int len = 0;
+  
+  if (val < 0)
+    val = val * -1;
+
+  while (val > 0) {
+    val = (val-(val%10)) / 10;
+  }
+
+  return len;
+}
+
+/* Convert a given integer val into a string
+   and place it in str. */
+void convertIntToString(int val, char *str)
+{
+  /* Somehow I can't use intLen(val) here.. */
+  char r_str[12];
+  int len = 0;
+  int tmp = val;
+
+  r_str[len] = '\0';
+
+  int a;
+  if (val == 0) {
+    str = "0";
+    return;
+  } else if (val < 0) {
+    tmp = tmp * -1;
+  }
+  while (tmp > 0) {
+    len++;
+    a = tmp % 10;
+    r_str[len] = (char)a+48;
+    tmp = (tmp-a) / 10;
+  }
+
+  if (val < 0) {
+    len++;
+    r_str[len] = '-';
+  }
+
+  int i = 0;
+  while (len >= 0) {
+    str[i] = r_str[len];
+    len--;
+    i++;
+  }
+}
+
+/* Taken from FreeBSD. 
+   Return the length of a string. */
+int stringLength(char *str)
+{
+  const char *s;
+  for (s = str; *s; ++s);
+  return (s-str);
+}
+
+/* Write a string to the consol. */
+void wrapper_writeString(char *str)
+{
+  syscall_write(1,str,stringLength(str));
+}
+
+/* Write an integer to the consol. */
+void wrapper_writeInt(int val)
+{
+  char str[intLen(val)];
+  convertIntToString(val,str);
+  wrapper_writeString(str);
+}
