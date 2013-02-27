@@ -1,7 +1,6 @@
 #include "tests/lib.h"
 
 static const char validprog[] = "[disk1]validprog";
-static const char invalidprog[] = "[disk1]invalidprog";
 static const char prog1[] = "[disk1]prog1";
 
 int main(void)
