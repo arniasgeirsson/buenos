@@ -511,7 +511,7 @@ int process_join(process_id_t pid) {
    retval = process_table[pid].retval;
 
    /* Mark the process_table entry to be empty. */
-    process_mark_process_table_entry_empty(pid);
+   process_mark_process_table_entry_empty(pid);
    
    /* Release the thread_table spinlock and enable interrups once again. */
    spinlock_release(&process_table_slock);
