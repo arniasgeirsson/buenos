@@ -102,7 +102,7 @@ void process_start(process_id_t pid)
     spinlock_release(&process_table_slock);
     _interrupt_set_state(intr_status);
 
-    DEBUG("process_Debug","Process_start: found this executable: %s\n", executable);
+    DEBUG("process_Debug","Debug: process_start found this executable: %s\n", executable);
 
     /* Is used by process_spawn.
      * This must take a pid instead of string, it can the look
@@ -263,7 +263,7 @@ process_id_t process_spawn(const char *executable) {
   interrupt_status_t intr_status;
   TID_t tid;
 
-  DEBUG("process_Debug","Trying to spawn process with executable: %s\n", (char*)executable);
+  DEBUG("process_Debug","Debug: Trying to spawn process with executable: %s\n", (char*)executable);
 
   /* We must first disable interrups and acquire the process_table lock. */
   intr_status = _interrupt_disable();
@@ -384,8 +384,10 @@ void process_finish(int retval) {
 	process_table[i].parent_pid == pid) {
       if (process_table[i].process_state == ZOMBIE) {
 	process_mark_process_table_entry_empty(i);
+	DEBUG("process_Debug","Debug: process_finish with pid %d, removed dead child with pid %d\n",pid,i);
       } else {   
 	process_table[i].parent_pid = -1;
+	DEBUG("process_Debug","Debug: process_finish with pid %d, made child with pid %d parentless\n",pid,i);
       }
     }
   }
@@ -393,6 +395,7 @@ void process_finish(int retval) {
   if (process_table[pid].parent_pid == -1) {
     /* We are parent-less. Meaning parent process has already finished.*/
     process_mark_process_table_entry_empty(pid);
+    DEBUG("process_Debug", "Debug: process_finish with pid %d had no parent\n", pid);
   } else {
     /* Set the state of this process to be ZOMBIE and set the return value. */
     process_table[pid].process_state = ZOMBIE;
@@ -405,7 +408,7 @@ void process_finish(int retval) {
   spinlock_release(&process_table_slock);
   _interrupt_set_state(intr_status);
 
-  DEBUG("process_Debug", "process_finish: trying to wake all on %d\n", pid);
+  DEBUG("process_Debug", "Debug: process_finish with pid %d is trying to wake one on %d\n", pid,pid);
 
   /* Wake up the sleeping parent, if any. */
   sleepq_wake((void*)pid);
@@ -436,6 +439,7 @@ void process_finish(int retval) {
 int process_join(process_id_t pid) {
    interrupt_status_t intr_status;
    int retval;
+   int ownPid;
 
    /* Se de to linier som fucker op.
    intr_status = _interrupt_disable();
@@ -444,7 +448,7 @@ int process_join(process_id_t pid) {
   spinlock_release(thread_get_slock());
   _interrupt_set_state(intr_status); */
 
-   DEBUG("process_Debug", "process_join: trying to join pid: %d\n", pid);
+   DEBUG("process_Debug", "Debug: process_join trying to join pid: %d\n", pid);
 
    /* Make sure the given process is a valid process_id */
    if (pid < 0 || pid >= PROCESS_MAX_PROCESSES)
@@ -456,6 +460,8 @@ int process_join(process_id_t pid) {
    intr_status = _interrupt_disable();
    spinlock_acquire(&process_table_slock);
 
+   ownPid = process_get_current_process();
+
    /* See if the process exists. */
    if (process_table[pid].process_id == -1)
    {
@@ -465,7 +471,7 @@ int process_join(process_id_t pid) {
    }
 
    /* Check if the given process id contains to yourself. */
-   if (pid == process_get_current_process())
+   if (pid == ownPid)
    {
      spinlock_release(&process_table_slock);
      _interrupt_set_state(intr_status);
@@ -474,7 +480,7 @@ int process_join(process_id_t pid) {
 
    /* Here is where process_join should check if the process is a child process,
       of this process. If not then return -4. */
-   if (process_get_current_process() != process_table[pid].parent_pid)
+   if (ownPid != process_table[pid].parent_pid)
    {
      spinlock_release(&process_table_slock);
      _interrupt_set_state(intr_status);
@@ -488,6 +494,7 @@ int process_join(process_id_t pid) {
    /* Uncomment -> fucker det op. Hvorfor? */
    /* process_table[cpid].process_state = WAITING;*/
    
+   DEBUG("process_Debug","Debug: process_join putting process with pid %d to sleep on pid %d\n",ownPid,pid);
    /* Add this process to the sleep-queue. */
    sleepq_add((void*)pid);
    
@@ -498,6 +505,7 @@ int process_join(process_id_t pid) {
    /* Call thread_switch() manually like kernel/sleepq.c specifies.
       Really needed? Doesn't seems like it. */
    thread_switch();
+   DEBUG("process_Debug","Debug: process_join, process with pid %d, woke up\n",ownPid);
 
    /* Disable interrupts and lock the process_table again. */
    intr_status = _interrupt_disable();
