@@ -29,7 +29,6 @@ int main(void)
   retval = syscall_join(syscall_exec(prog1));
   wrapper_writeMlt("4. Joined my own child: ",retval==0,"\n");
 
-
   /* 5. Join your own zombie child. */
   a = syscall_exec(prog1);
   b = syscall_exec(prog1);
