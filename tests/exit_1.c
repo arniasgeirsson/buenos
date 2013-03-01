@@ -17,6 +17,8 @@ int main(void)
   wrapper_writeMlt("2. Child exited with expected value: ",retval==-2,"\n");
 
   wrapper_writeString("Finished syscall_exit tests!\n");
-  syscall_halt();
-  return 0;
+
+  syscall_exit(0); 
+
+  return 0; 
 }

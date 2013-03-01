@@ -49,13 +49,9 @@ void process_start(process_id_t pid);
 #define PROCESS_PTABLE_FULL  -1
 #define PROCESS_ILLEGAL_JOIN -2
 
-#define PROCESS_MAX_PROCESSES 20
+#define PROCESS_MAX_PROCESSES 32
 
 #define MAX_FILE_NAME 32
-
-typedef enum {RUNNING, WAITING, ZOMBIE} process_state_t;
-
-#define MAX_FILE_NAME = 32;
 
 typedef enum {RUNNING, WAITING, ZOMBIE} process_state_t;
 

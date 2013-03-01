@@ -13,7 +13,7 @@ int main(void)
 
   /* ------ Part 1 ------ */
   /* 1. Join yourself. */
-  retval = syscall_join(0);
+  retval = syscall_join(1);
   wrapper_writeMlt("1. Joined myself: ",retval == -3,"\n");
   
   /* 2. Join with index out of bounds. */
@@ -38,12 +38,14 @@ int main(void)
   wrapper_writeMlt("5. Joined my own zombie child: ",retval==0,"\n");
 
   /* 6. Join a process that is not your own child. */
-  /* Prog2 tries to join its parent, and returns the
-     return value from its join call. */
+  /* Prog2 tries to join processid 0 (parent of this process), and 
+     returns the return value from its join call. */
   retval = syscall_join(syscall_exec(prog2));
   wrapper_writeMlt("6. Joined not your own child: ",retval==-4,"\n");
 
   wrapper_writeString("Finished testing syscall_join.\n");
-  syscall_halt();
+
+  syscall_exit(0); 
+
   return 0;
 }

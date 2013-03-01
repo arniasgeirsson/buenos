@@ -47,6 +47,7 @@ int main(void)
   }
 
   wrapper_writeString("Finished the syscall_exec test!\n");
-  syscall_halt();
+  syscall_exit(0);
+
   return 0;
 }
