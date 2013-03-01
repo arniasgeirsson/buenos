@@ -41,6 +41,7 @@
 #include "kernel/cswitch.h"
 #include "vm/pagetable.h"
 #include "proc/process.h"
+#include "kernel/spinlock.h"
 
 /* Thread ID data type (index in thread table) */
 typedef int TID_t;
@@ -95,6 +96,11 @@ void thread_goto_userland(context_t *usercontext);
 
 void thread_finish(void);
 
+/* Get the thread associated with a thread id t. */
+thread_table_t *thread_get_thread_entry(TID_t t);
+
+/* Get the spinlock used to lock the thread_table. */
+spinlock_t *thread_get_slock();
 
 #define USERLAND_ENABLE_BIT 0x00000010
 
