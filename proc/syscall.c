@@ -117,12 +117,12 @@ void syscall_handle(context_t *user_context)
       halt_kernel();
       break;
     case SYSCALL_WRITE:
-      syscall_write((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
+      user_context->cpu_regs[MIPS_REGISTER_V0] = syscall_write((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
 		    (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
 		    (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
       break;
     case SYSCALL_READ:
-      syscall_read((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
+      user_context->cpu_regs[MIPS_REGISTER_V0] = syscall_read((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
 		   (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
 		   (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
       break;
