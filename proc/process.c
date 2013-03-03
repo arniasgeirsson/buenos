@@ -225,7 +225,7 @@ void process_start(process_id_t pid)
 /* Marks a given entry in the process_table to be empty. */
 void process_mark_process_table_entry_empty(process_id_t i)
 {
-  /* What only really matters is that process_id is set to -1.
+  /* What only really matters is that process_state is set to EMPTY.
      We just want to try and maintain a 'clean' table, and remove any trash. */
   stringcopy(process_table[i].executable, "", MAX_FILE_NAME);
   process_table[i].process_state = EMPTY;
@@ -242,7 +242,7 @@ void process_init() {
   spinlock_reset(&process_table_slock);
 
   /* Initialize the process table by filling it with 'empty' process_control_blocks.
-     An empty entry is denoted by that process_id is -1. */
+     An empty entry is denoted by that process_state is EMPTY. */
   for (i=0; i < PROCESS_MAX_PROCESSES; i++)
   {
     process_mark_process_table_entry_empty(i);
@@ -293,7 +293,8 @@ process_id_t process_spawn(const char *executable) {
   /* Copy the executable string into the process_control_block. */
   stringcopy(process_table[i].executable, executable, MAX_FILE_NAME);
   
-  /* Set the state, process_id and retval. */
+  /* Set the state, retval and parent_pid.
+     parent_pid is changed later, if the new process has a parent. */
   process_table[i].process_state = RUNNING;
   process_table[i].retval = 0;
   process_table[i].parent_pid = -1;
@@ -302,11 +303,11 @@ process_id_t process_spawn(const char *executable) {
   spinlock_release(&process_table_slock);
   _interrupt_set_state(intr_status);
 
-  /* This is still parent process, so we must create new thread and let 
+  /* This is still the parent process, so we must create new thread and let 
    * the spawned process run in that, and let that call process_start. */
 
   /* If i is 0, then we assume this is the initproc,
-    and therefore should not run in a new thread. */
+    and therefore should not run in a new thread and have no parent. */
   if (i == 0)
   {
     intr_status = _interrupt_disable(); /* Needed? */
@@ -340,7 +341,6 @@ process_id_t process_spawn(const char *executable) {
   /* Here is where this process should mark the new one as a child process.
      Not above, where we 'initialized' the process_table entry, because
      we shouldn't do it, if this is the first process, which will keep -1 as parent id. */
-  
   process_table[i].parent_pid = process_get_current_process();
 
   /* Update the thread_block to contain its process_id. 
@@ -374,20 +374,24 @@ void process_finish(int retval) {
      and the thread_table spinlock. */
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_table_slock);
+
   spinlock_acquire(thread_get_slock()); /* Needed? */
 
   /* Get the process id of this process. */
   pid = process_get_current_process();
+
   spinlock_release(thread_get_slock()); /* Needed? */
 
   /* Here is where you should kill all your children. */
   for (i=0; i < PROCESS_MAX_PROCESSES; i++) {
-    /* If process entry is child, kill it. */
+    /* Check if process entry is child. */
     if (process_table[i].process_state != EMPTY && process_table[i].parent_pid == pid) {
       if (process_table[i].process_state == ZOMBIE) {
+	/* If it is a zombie, kill it. */
 	process_mark_process_table_entry_empty(i);
 	DEBUG("process_Debug","Debug: process_finish with pid %d, removed dead child with pid %d\n",pid,i);
-      } else {   
+      } else {
+	/* Otherwise make it parentless. */
 	process_table[i].parent_pid = -1;
 	DEBUG("process_Debug","Debug: process_finish with pid %d, made child with pid %d parentless\n",pid,i);
       }
@@ -395,11 +399,11 @@ void process_finish(int retval) {
   }
 
   if (process_table[pid].parent_pid == -1) {
-    /* We are parent-less. Meaning parent process has already finished.*/
+    /* We are parentless. Meaning parent process has already finished.*/
     process_mark_process_table_entry_empty(pid);
     DEBUG("process_Debug", "Debug: process_finish with pid %d had no parent\n", pid);
   } else {
-    /* Set the state of this process to be ZOMBIE and set the return value. */
+    /* Otherwise set the state of this process to be ZOMBIE and set the return value. */
     process_table[pid].process_state = ZOMBIE;
     process_table[pid].retval = retval;
   }
@@ -471,7 +475,7 @@ int process_join(process_id_t pid) {
      return -2;
    }
 
-   /* Check if the given process id contains to yourself. */
+   /* Check if the given process id points to yourself. */
    if (pid == ownPid)
    {
      spinlock_release(&process_table_slock);
