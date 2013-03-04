@@ -446,13 +446,6 @@ int process_join(process_id_t pid) {
    int retval;
    int ownPid;
 
-   /* Se de to linier som fucker op.
-   intr_status = _interrupt_disable();
-  spinlock_acquire(thread_get_slock());
-  int cpid = process_get_current_process();
-  spinlock_release(thread_get_slock());
-  _interrupt_set_state(intr_status); */
-
    DEBUG("process_Debug", "Debug: process_join trying to join pid: %d\n", pid);
 
    /* Make sure the given process is a valid process_id */
@@ -464,7 +457,7 @@ int process_join(process_id_t pid) {
    /* Disable interrupts and lock the process_table spinlock. */
    intr_status = _interrupt_disable();
    spinlock_acquire(&process_table_slock);
-
+   /* Locking thread_table here seems to create some trouble. */
    ownPid = process_get_current_process();
 
    /* See if the process exists. */
@@ -495,8 +488,7 @@ int process_join(process_id_t pid) {
    /* Sleep until the given process is a zombie. */
    while (process_table[pid].process_state != ZOMBIE) {
      
-     /* Uncomment -> fucker det op. Hvorfor? */
-     /* process_table[cpid].process_state = WAITING;*/
+     process_table[ownPid].process_state = WAITING;
      
      DEBUG("process_Debug","Debug: process_join putting process with pid %d to sleep on pid %d\n",ownPid,pid);
      /* Add this process to the sleep-queue. */
@@ -515,8 +507,7 @@ int process_join(process_id_t pid) {
      intr_status = _interrupt_disable();
      spinlock_acquire(&process_table_slock);
      
-     /* Uncomment -> fucker det op. Hvorfor? */
-     /*   process_table[cpid].process_state = RUNNING;*/
+     process_table[ownPid].process_state = RUNNING;
    }
 
    /* Get the return value from the dead process. */
