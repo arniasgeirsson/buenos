@@ -29,7 +29,7 @@ int main(void)
   /* Try and join the child. */
   ret = syscall_join(child);
 
-  wrapper_writeMlt("1.3: Return value from joined process was 0 as expected: ",ret==0,"\n");
+  wrapper_writeMlt("1.3: Return value from joined process was: ",ret,"\n");
 
   /* 2. Try and create more processes than allowed. */
   for (i=0; i < max_processes; i++) {

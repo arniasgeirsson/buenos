@@ -1,6 +1,8 @@
+#include "kernel/lock_cond.h"
 #include "kernel/interrupt.h"
 #include "kernel/sleepq.h"
-#include "kernel/tread.h"
+#include "kernel/thread.h"
+#include "kernel/assert.h"
 
 interrupt_status_t intr_status;
 
@@ -34,13 +36,13 @@ void lock_release(lock_t *lock){
 
 void condition_init(cond_t *cond){
   intr_status = _interrupt_disable();
-  *cond = 1;
+  *cond = 0;
   _interrupt_set_state(intr_status);
 }
 
 void condition_wait(cond_t *cond, lock_t *lock){
   intr_status = _interrupt_disable();
-  KERNEL_ASSERT(!(*cond));
+  KERNEL_ASSERT(cond == NULL);
   lock_release(lock);
   sleepq_add((void*)cond);
   thread_switch();
@@ -58,6 +60,7 @@ void condition_signal(cond_t *cond, lock_t *lock){
 
 void condition_broadcast(cond_t *cond, lock_t *lock){
   intr_status = _interrupt_disable();
+  KERNEL_ASSERT(!(*lock));
   sleepq_wake_all((void*)cond);
   _interrupt_set_state(intr_status);
 }
