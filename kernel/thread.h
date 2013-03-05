@@ -96,7 +96,7 @@ void thread_goto_userland(context_t *usercontext);
 
 void thread_finish(void);
 
-/* Get the thread associated with a thread id t. */
+/* Get the thread associated with a given thread_id t. */
 thread_table_t *thread_get_thread_entry(TID_t t);
 
 /* Get the spinlock used to lock the thread_table. */

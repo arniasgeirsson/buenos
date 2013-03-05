@@ -132,6 +132,7 @@ void init_startup_thread(uint32_t arg)
 
     kprintf("Starting initial program '%s'\n", bootargs_get("initprog"));
 
+    /* Use process_spawn instead of process_start from now on. */
     process_spawn(bootargs_get("initprog"));
 
     /* The current process_start() should never return. */
@@ -213,7 +214,8 @@ void init(void)
 
     kwrite("Initializing virtual memory\n");
     vm_init();
- 
+
+    /* Initialize the process_table and respected lock. */
     kwrite("Initializing process table\n");
     process_init();
 

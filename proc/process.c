@@ -45,7 +45,6 @@
 #include "vm/vm.h"
 #include "vm/pagepool.h"
 #include "kernel/spinlock.h"
-#include "kernel/lock_cond.h"
 #include "kernel/sleepq.h"
 #include "lib/debug.h"
 #include "lib/libc.h"
@@ -57,8 +56,7 @@
 
 process_control_block_t process_table[PROCESS_MAX_PROCESSES];
 
-//spinlock_t process_table_slock;
-lock_t process_table_lock;
+spinlock_t process_table_slock;
 
 
 /**
@@ -95,15 +93,13 @@ void process_start(process_id_t pid)
 
     /* Lock the process_table lock and disable interrupts. */
     intr_status = _interrupt_disable();
-    //spinlock_acquire(&process_table_slock);
-    lock_acquire(&process_table_lock);
+    spinlock_acquire(&process_table_slock);
 
     /* Fetch the executable string from the process_table. */
     executable = process_get_process_entry(pid)->executable;
 
     /* Release the lock and re-establish the interrupt status. */
-    //spinlock_release(&process_table_slock);
-    lock_release(&process_table_lock);
+    spinlock_release(&process_table_slock);
     _interrupt_set_state(intr_status);
 
     DEBUG("process_Debug","Debug: process_start found this executable: %s\n", executable);
@@ -229,11 +225,10 @@ void process_start(process_id_t pid)
 /* Marks a given entry in the process_table to be empty. */
 void process_mark_process_table_entry_empty(process_id_t i)
 {
-  /* What only really matters is that process_id is set to -1.
+  /* What only really matters is that process_state is set to EMPTY.
      We just want to try and maintain a 'clean' table, and remove any trash. */
   stringcopy(process_table[i].executable, "", MAX_FILE_NAME);
-  process_table[i].process_state = WAITING;
-  process_table[i].process_id = -1;
+  process_table[i].process_state = EMPTY;
   process_table[i].retval = 0;
   process_table[i].parent_pid = -1;
 }
@@ -244,11 +239,10 @@ void process_init() {
   int i;
 
   /* Reset/initialize the process_table spinlock. */
-  //spinlock_reset(&process_table_slock);
-  lock_reset(&process_table_lock);
+  spinlock_reset(&process_table_slock);
 
   /* Initialize the process table by filling it with 'empty' process_control_blocks.
-     An empty entry is denoted by that process_id is -1. */
+     An empty entry is denoted by that process_state is EMPTY. */
   for (i=0; i < PROCESS_MAX_PROCESSES; i++)
   {
     process_mark_process_table_entry_empty(i);
@@ -276,20 +270,18 @@ process_id_t process_spawn(const char *executable) {
 
   /* We must first disable interrups and acquire the process_table lock. */
   intr_status = _interrupt_disable();
-  //spinlock_acquire(&process_table_slock);
-  lock_acquire(&process_table_lock);
+  spinlock_acquire(&process_table_slock);
 
   /* Find empty spot in process_table. */
   for (i=0; i < PROCESS_MAX_PROCESSES; i++)
   {
-    if (process_table[i].process_id == -1) break;
+    if (process_table[i].process_state == EMPTY) break;
   }
 
   /* Check if the process_table is filled. */
   if (i == PROCESS_MAX_PROCESSES)
   {
-    //spinlock_release(&process_table_slock);
-    lock_release(&process_table_lock);
+    spinlock_release(&process_table_slock);
     _interrupt_set_state(intr_status);
     return -1;
   }
@@ -301,32 +293,30 @@ process_id_t process_spawn(const char *executable) {
   /* Copy the executable string into the process_control_block. */
   stringcopy(process_table[i].executable, executable, MAX_FILE_NAME);
   
-  /* Set the state, process_id and retval. */
+  /* Set the state, retval and parent_pid.
+     parent_pid is changed later, if the new process has a parent. */
   process_table[i].process_state = RUNNING;
-  process_table[i].process_id = i;
   process_table[i].retval = 0;
   process_table[i].parent_pid = -1;
 
   /* Enable interrups again, and release the process_table lock. */
-  //spinlock_release(&process_table_slock);
-  lock_release(&process_table_lock);
+  spinlock_release(&process_table_slock);
   _interrupt_set_state(intr_status);
 
-  /* This is still parent process, so we must create new thread and let 
+  /* This is still the parent process, so we must create new thread and let 
    * the spawned process run in that, and let that call process_start. */
 
   /* If i is 0, then we assume this is the initproc,
-    and therefore should not run in a new thread. */
+    and therefore should not run in a new thread and have no parent. */
   if (i == 0)
   {
-    intr_status = _interrupt_disable();
-    spinlock_acquire(thread_get_slock());
-
-
+    intr_status = _interrupt_disable(); /* Needed? */
+    spinlock_acquire(thread_get_slock()); /* Needed? */
+    
     thread_get_current_thread_entry()->process_id = i;
     
-    spinlock_release(thread_get_slock());
-    _interrupt_set_state(intr_status);
+    spinlock_release(thread_get_slock()); /* Needed? */ 
+    _interrupt_set_state(intr_status); /* Needed? */
     process_start(i);
   }
 
@@ -339,13 +329,11 @@ process_id_t process_spawn(const char *executable) {
   if (tid < 0)
   {
     intr_status = _interrupt_disable();
-    //spinlock_acquire(&process_table_slock);
-    spinlock_acquire(&process_table_lock);
+    spinlock_acquire(&process_table_slock);
 
     process_mark_process_table_entry_empty(i);
 
-    //spinlock_release(&process_table_slock);
-    spinlock_release(&process_table_lock);
+    spinlock_release(&process_table_slock);
     _interrupt_set_state(intr_status);
     return -2;
   }
@@ -353,19 +341,18 @@ process_id_t process_spawn(const char *executable) {
   /* Here is where this process should mark the new one as a child process.
      Not above, where we 'initialized' the process_table entry, because
      we shouldn't do it, if this is the first process, which will keep -1 as parent id. */
-  
   process_table[i].parent_pid = process_get_current_process();
 
   /* Update the thread_block to contain its process_id. 
      Here we must disable interrupts again, and lock the
      thread_table spinlock, before updating it. */
-  intr_status = _interrupt_disable();
-  spinlock_acquire(thread_get_slock());
+  intr_status = _interrupt_disable(); /* Needed? */
+  spinlock_acquire(thread_get_slock()); /* Needed? */
 
   thread_get_thread_entry(tid)->process_id = i;
 
-  spinlock_release(thread_get_slock());
-  _interrupt_set_state(intr_status);
+  spinlock_release(thread_get_slock()); /* Needed? */
+  _interrupt_set_state(intr_status); /* Needed? */
 
   /* Mark the created thread to be ready to run. */
   thread_run(tid);
@@ -386,22 +373,25 @@ void process_finish(int retval) {
   /* Disable interrupts and lock the process_table spinlock,
      and the thread_table spinlock. */
   intr_status = _interrupt_disable();
-  //spinlock_acquire(&process_table_slock);
-  lock_acquire(&process_table_lock);
-  spinlock_acquire(thread_get_slock());
+  spinlock_acquire(&process_table_slock);
+
+  spinlock_acquire(thread_get_slock()); /* Needed? */
 
   /* Get the process id of this process. */
   pid = process_get_current_process();
 
+  spinlock_release(thread_get_slock()); /* Needed? */
+
   /* Here is where you should kill all your children. */
   for (i=0; i < PROCESS_MAX_PROCESSES; i++) {
-    /* If process entry is child, kill it. */
-    if (process_table[i].process_id != -1 &&
-	process_table[i].parent_pid == pid) {
+    /* Check if process entry is child. */
+    if (process_table[i].process_state != EMPTY && process_table[i].parent_pid == pid) {
       if (process_table[i].process_state == ZOMBIE) {
+	/* If it is a zombie, kill it. */
 	process_mark_process_table_entry_empty(i);
 	DEBUG("process_Debug","Debug: process_finish with pid %d, removed dead child with pid %d\n",pid,i);
-      } else {   
+      } else {
+	/* Otherwise make it parentless. */
 	process_table[i].parent_pid = -1;
 	DEBUG("process_Debug","Debug: process_finish with pid %d, made child with pid %d parentless\n",pid,i);
       }
@@ -409,20 +399,18 @@ void process_finish(int retval) {
   }
 
   if (process_table[pid].parent_pid == -1) {
-    /* We are parent-less. Meaning parent process has already finished.*/
+    /* We are parentless. Meaning parent process has already finished.*/
     process_mark_process_table_entry_empty(pid);
     DEBUG("process_Debug", "Debug: process_finish with pid %d had no parent\n", pid);
   } else {
-    /* Set the state of this process to be ZOMBIE and set the return value. */
+    /* Otherwise set the state of this process to be ZOMBIE and set the return value. */
     process_table[pid].process_state = ZOMBIE;
     process_table[pid].retval = retval;
   }
 
   /* Enable interrupts again, and release the process_table spinlock,
      and the thread_table spinloc. */
-  spinlock_release(thread_get_slock());
-  //spinlock_release(&process_table_slock);
-       lock_release(&process_table_lock);
+  spinlock_release(&process_table_slock);
   _interrupt_set_state(intr_status);
 
   DEBUG("process_Debug", "Debug: process_finish with pid %d is trying to wake one on %d\n", pid,pid);
@@ -432,14 +420,14 @@ void process_finish(int retval) {
 
   /* Disable interrupts and acquire the thread_table spinlock
      before using the table. */
-  intr_status = _interrupt_disable();
-  spinlock_acquire(thread_get_slock());
+  intr_status = _interrupt_disable(); /* Needed? */
+  spinlock_acquire(thread_get_slock()); /* Needed? */
 
   vm_destroy_pagetable(thread_get_current_thread_entry()->pagetable);
   thread_get_current_thread_entry()->pagetable = NULL;
 
-  spinlock_release(thread_get_slock());
-  _interrupt_set_state(intr_status);
+  spinlock_release(thread_get_slock()); /* Needed? */
+  _interrupt_set_state(intr_status); /* Needed? */
 
   /* 'Kill' this thread. */
   thread_finish();
@@ -458,13 +446,6 @@ int process_join(process_id_t pid) {
    int retval;
    int ownPid;
 
-   /* Se de to linier som fucker op.
-   intr_status = _interrupt_disable();
-  spinlock_acquire(thread_get_slock());
-  int cpid = process_get_current_process();
-  spinlock_release(thread_get_slock());
-  _interrupt_set_state(intr_status); */
-
    DEBUG("process_Debug", "Debug: process_join trying to join pid: %d\n", pid);
 
    /* Make sure the given process is a valid process_id */
@@ -475,25 +456,22 @@ int process_join(process_id_t pid) {
 
    /* Disable interrupts and lock the process_table spinlock. */
    intr_status = _interrupt_disable();
-   //spinlock_acquire(&process_table_slock);
-   lock_acquire(&process_table_lock);
-
+   spinlock_acquire(&process_table_slock);
+   /* Locking thread_table here seems to create some trouble. */
    ownPid = process_get_current_process();
 
    /* See if the process exists. */
-   if (process_table[pid].process_id == -1)
+   if (process_table[pid].process_state == EMPTY)
    {
-     //spinlock_release(&process_table_slock);
-     lock_release(&process_table_lock);
+     spinlock_release(&process_table_slock);
      _interrupt_set_state(intr_status);
      return -2;
    }
 
-   /* Check if the given process id contains to yourself. */
+   /* Check if the given process id points to yourself. */
    if (pid == ownPid)
    {
-     //spinlock_release(&process_table_slock);
-     lock_release(&process_table_lock);
+     spinlock_release(&process_table_slock);
      _interrupt_set_state(intr_status);
      return -3;
    }
@@ -502,42 +480,36 @@ int process_join(process_id_t pid) {
       of this process. If not then return -4. */
    if (ownPid != process_table[pid].parent_pid)
    {
-     //spinlock_release(&process_table_slock);
-     lock_release(&process_table_lock);
+     spinlock_release(&process_table_slock);
      _interrupt_set_state(intr_status);
      return -4;
    }
 
-   /* Check if the process is already finished and therefore marked as a zombie,
-      and if so don't go to sleep. */
-   if (process_table[pid].process_state == ZOMBIE) goto isZombie;
+   /* Sleep until the given process is a zombie. */
+   while (process_table[pid].process_state != ZOMBIE) {
+     
+     process_table[ownPid].process_state = WAITING;
+     
+     DEBUG("process_Debug","Debug: process_join putting process with pid %d to sleep on pid %d\n",ownPid,pid);
+     /* Add this process to the sleep-queue. */
+     sleepq_add((void*)pid);
+     
+     /* Release the process_table spinlock and enable interrupts. */
+     spinlock_release(&process_table_slock);
+     _interrupt_set_state(intr_status);
+     
+     /* Call thread_switch() manually like kernel/sleepq.c specifies.
+	Really needed? Doesn't seems like it. */
+     thread_switch();
+     DEBUG("process_Debug","Debug: process_join, process with pid %d, woke up\n",ownPid);
+     
+     /* Disable interrupts and lock the process_table again. */
+     intr_status = _interrupt_disable();
+     spinlock_acquire(&process_table_slock);
+     
+     process_table[ownPid].process_state = RUNNING;
+   }
 
-   /* Uncomment -> fucker det op. Hvorfor? */
-   /* process_table[cpid].process_state = WAITING;*/
-   
-   DEBUG("process_Debug","Debug: process_join putting process with pid %d to sleep on pid %d\n",ownPid,pid);
-   /* Add this process to the sleep-queue. */
-   sleepq_add((void*)pid);
-   
-   /* Release the process_table spinlock and enable interrupts. */
-   //spinlock_release(&process_table_slock);
-   lock_release(&process_table_lock);
-   _interrupt_set_state(intr_status);
-
-   /* Call thread_switch() manually like kernel/sleepq.c specifies.
-      Really needed? Doesn't seems like it. */
-   thread_switch();
-   DEBUG("process_Debug","Debug: process_join, process with pid %d, woke up\n",ownPid);
-
-   /* Disable interrupts and lock the process_table again. */
-   intr_status = _interrupt_disable();
-   //spinlock_acquire(&process_table_slock);
-   lock_acquire(&process_table_lock);
-   
-   /* Uncomment -> fucker det op. Hvorfor? */
-   /*   process_table[cpid].process_state = RUNNING;*/
-   
- isZombie:
    /* Get the return value from the dead process. */
    retval = process_table[pid].retval;
 
@@ -545,8 +517,7 @@ int process_join(process_id_t pid) {
    process_mark_process_table_entry_empty(pid);
    
    /* Release the thread_table spinlock and enable interrups once again. */
-   //spinlock_release(&process_table_slock);
-   lock_release(&process_table_lock);
+   spinlock_release(&process_table_slock);
    _interrupt_set_state(intr_status);
    
    /* Return the return value from the dead process. */

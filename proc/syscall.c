@@ -49,8 +49,6 @@ int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
 
-  fhandle = fhandle;
-
   dev = device_get(YAMS_TYPECODE_TTY, 0);
   if(dev == NULL)
     return -1;
@@ -59,6 +57,10 @@ int syscall_write(int fhandle, const void *buffer, int length){
   if(gcd == NULL)
     return -1;
 
+  if (fhandle != FILEHANDLE_STDOUT) {
+    KERNEL_PANIC("Can only write to standard output!");
+  }
+
   return gcd->write(gcd, buffer, length);
 }
 
@@ -66,8 +68,6 @@ int syscall_read(int fhandle, void *buffer, int length){
   device_t *dev;
   gcd_t *gcd;
   
-  fhandle = fhandle;
-
   dev = device_get(YAMS_TYPECODE_TTY, fhandle);
   if(dev == NULL)
     return -1;
@@ -75,6 +75,10 @@ int syscall_read(int fhandle, void *buffer, int length){
   gcd = (gcd_t *)dev->generic_device;
   if(gcd == NULL)
     return -1;
+
+  if (fhandle != FILEHANDLE_STDIN) {
+    KERNEL_PANIC("Can only read from standard input!");
+  }
 
   return gcd->read(gcd, buffer, length);
 }
@@ -117,12 +121,12 @@ void syscall_handle(context_t *user_context)
       halt_kernel();
       break;
     case SYSCALL_WRITE:
-      syscall_write((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
+      user_context->cpu_regs[MIPS_REGISTER_V0] = syscall_write((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
 		    (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
 		    (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
       break;
     case SYSCALL_READ:
-      syscall_read((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
+      user_context->cpu_regs[MIPS_REGISTER_V0] = syscall_read((int)user_context->cpu_regs[MIPS_REGISTER_A1], 
 		   (void*)user_context->cpu_regs[MIPS_REGISTER_A2],
 		   (int)user_context->cpu_regs[MIPS_REGISTER_A3]);
       break;
