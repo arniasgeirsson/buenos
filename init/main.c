@@ -99,6 +99,15 @@ void init_startup_fallback(void) {
         gcd->write(gcd, buffer, len);
 
 	DEBUG("debuginit", "Console test done, %d bytes written\n", len);
+    } else if (bootargs_get("testconsole_malloc") != NULL) {
+      DEBUG("debug_G4", "###################33something something \n");
+      int *h;
+      int g = 123;
+      h = &g;
+      h = h +2121231321;
+      int j = *h;
+      j = j;
+      DEBUG("debug_G4", "something something########3,   %d \n",j);
     }
 
     /* Nothing else to do, so we shut the system down. */

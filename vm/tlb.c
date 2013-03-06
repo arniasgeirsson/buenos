@@ -38,6 +38,8 @@
 #include "kernel/assert.h"
 #include "vm/tlb.h"
 #include "vm/pagetable.h"
+#include "kernel/thread.h"
+#include "lib/debug.h"
 
 void tlb_modified_exception(void)
 {
@@ -46,7 +48,44 @@ void tlb_modified_exception(void)
 
 void tlb_load_exception(void)
 {
-    KERNEL_PANIC("Unhandled TLB load exception");
+  tlb_exception_state_t* tlb_exc_state = NULL;
+  _tlb_get_exception_state(tlb_exc_state);
+  DEBUG("debug_G4", "############1\n");
+
+  thread_table_t *current_thread = thread_get_current_thread_entry();
+  DEBUG("debug_G4", "############2\n");
+
+  KERNEL_ASSERT((unsigned int)thread_get_current_thread() == (unsigned int)tlb_exc_state->asid);
+  DEBUG("debug_G4", "############3\n");
+
+  if (current_thread->pagetable == NULL) {
+    KERNEL_PANIC("In kernel mode, TLB load exception");
+  }
+  DEBUG("debug_G4", "############4\n");
+
+  /*tlb_entry_t tlb_entry = current_thread->pagetable->entries[tlb_exc_state->badvpn2];
+   */
+  int i;
+  tlb_entry_t tlb_entry;
+  tlb_entry_t tmp;
+  
+  for (i=0; i < PAGETABLE_ENTRIES; i++) {
+    tmp = current_thread->pagetable->entries[i];
+    if ((unsigned int)tmp.VPN2 == (unsigned int)tlb_exc_state->badvpn2) {
+      DEBUG("debug_G4", "Found match in tlb_load_exception\n");
+      tlb_entry = tmp;
+      break;
+    }
+  }
+  
+  if (i == PAGETABLE_ENTRIES) {
+    KERNEL_PANIC("tlb_loac_exception, page does not exist");
+  }
+
+  _tlb_write_random(&tlb_entry);
+
+
+  KERNEL_PANIC("Unhandled TLB load exception");
 }
 
 void tlb_store_exception(void)

@@ -57,7 +57,7 @@ static void print_tlb_debug(void)
            "Failed Virtual Address: 0x%8.8x\n"
            "Virtual Page Number:    0x%8.8x\n"
            "ASID (Thread number):   %d\n",
-           tes.badvaddr, tes.badvpn2, tes.asid);
+           tes.badvaddr, tes.badvpn2, tes.asid);    
 }
 
 /** Handles an exception (code != 0) that occured in kernel mode. Will
