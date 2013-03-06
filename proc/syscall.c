@@ -44,6 +44,7 @@
 #include "drivers/gcd.h"
 #include "lib/debug.h"
 #include "proc/process.h"
+#include "kernel/thread.h"
 
 int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
@@ -85,10 +86,12 @@ int syscall_read(int fhandle, void *buffer, int length){
 
 int syscall_exec(const char *filename)
 {
+
   return process_spawn(filename);
 }
 
 void syscall_exit(int retval)
+
 {
   process_finish(retval);
 }
@@ -96,6 +99,13 @@ void syscall_exit(int retval)
 int syscall_join(int pid)
 {
   return process_join(pid);
+}
+
+void *syscall_memlimit (void* heapend)
+{
+  uint32_t heap_end = process_get_current_process_entry()->heap_end;
+  DEBUG("debug_G4", "heap_end is %d and arg heapend is %d\n",heap_end,(uint32_t)heapend);
+  return NULL;
 }
 
 /**
