@@ -197,7 +197,11 @@ void interrupt_handle(uint32_t cause) {
            you implement proper VM), you must manually call _tlb_set_asid
            here. See the implementation of tlb_fill on details how to do that.
         */
+
+	/* The old call */
+	/*tlb_fill(thread_get_current_thread_entry()->pagetable); */
+
+	/* The new call */
 	_tlb_set_asid(thread_get_current_thread());
-	/*tlb_fill(thread_get_current_thread_entry()->pagetable);*/
     }
 }

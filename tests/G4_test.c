@@ -13,10 +13,10 @@ int main(void)
   int j = *h;
   wrapper_writeString("About to do it222!!\n");
   j = j;
-  wrapper_writeString("About to do it333!!\n");*/
+  wrapper_writeString("About to do it333!!\n");
 
 
-  wrapper_writeMlt("J is ",j,"\n");
+  wrapper_writeMlt("J is ",j,"\n");*/
   syscall_halt();
   return 0;
 }

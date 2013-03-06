@@ -44,69 +44,64 @@
 
 void tlb_modified_exception(void)
 {
-  tlb_exception_state_t tlb_exc_state;
-  _tlb_get_exception_state(&tlb_exc_state);
-
   thread_table_t *current_thread = thread_get_current_thread_entry();
 
+  /* This shouldn't happen if we are a kernel thread. */
   if (current_thread->pagetable == NULL) {
     KERNEL_PANIC("Unhandled TLB modified exception");
   }
 
-  /* kill user process */
+  /* If this is a user process, we 'kill' the user process. */
   process_finish(-6);
 }
 
-void tlb_load_exception(void)
-{
-  DEBUG("debug_G4", "############00\n");
+/* Is called by tlb_load_exception and tlb_store_exception. */
+void tlb_help_exception_handling(char *type)
+{  
   tlb_exception_state_t tlb_exc_state;
-  _tlb_get_exception_state(&tlb_exc_state);
-  DEBUG("debug_G4", "############1\n");
-
-  thread_table_t *current_thread = thread_get_current_thread_entry();
-  DEBUG("debug_G4", "############2\n");
-
-  // DEBUG("debug_G4","thread_get_c.. = %d\ntlb_ex.. = %d\n", thread_get_current_thread(), tlb_exc_state.asid);
-  // DEBUG("debug_G4","thread_get_c.. = %d\ntlb_ex.. = %d\n", (unsigned int)thread_get_current_thread(), (unsigned int)tlb_exc_state.asid);
-
- // KERNEL_ASSERT((unsigned int)*current_thread == (unsigned int)tlb_exc_state.asid);
-  DEBUG("debug_G4", "############3\n");
-
-  if (current_thread->pagetable == NULL) {
-    KERNEL_PANIC("In kernel mode, TLB load exception");
-  }
-  DEBUG("debug_G4", "############4\n");
-
-  /*tlb_entry_t tlb_entry = current_thread->pagetable->entries[tlb_exc_state->badvpn2];
-   */
+  thread_table_t *current_thread;
   int i;
   tlb_entry_t tlb_entry;
   tlb_entry_t tmp;
+
+  current_thread = thread_get_current_thread_entry();
+
+  /* This exception should not happen if this is a kernel thread. */
+  if (current_thread->pagetable == NULL) {
+    KERNEL_PANIC("TLB load/store exception, cannot be in kernel mode");
+  }
   
+  /* Get the exception state */
+  _tlb_get_exception_state(&tlb_exc_state);
+
+  /* Search for the page that was looked up. */
   for (i=0; i < PAGETABLE_ENTRIES; i++) {
     tmp = current_thread->pagetable->entries[i];
     if ((unsigned int)tmp.VPN2 == (unsigned int)tlb_exc_state.badvpn2) {
-      DEBUG("debug_G4", "Found match in tlb_load_exception\n");
+      DEBUG("debug_G4", "Found match in tlb_%s_exception\n",type);
       tlb_entry = tmp;
       break;
     }
   }
   
+  /* If we looped through the whole look without finding a page,
+     then the requested page does not exist. */
   if (i == PAGETABLE_ENTRIES) {
-    KERNEL_PANIC("tlb_load_exception, page does not exist");
+    KERNEL_PANIC("TLB load/store exception, page does not exist");
   }
-
+  
+  /* Else write the page into the TLB. */
   _tlb_write_random(&tlb_entry);
+}
 
-
-  //  KERNEL_PANIC("Unhandled TLB load exception");
+void tlb_load_exception(void)
+{
+  tlb_help_exception_handling("load");
 }
 
 void tlb_store_exception(void)
 {
-  tlb_load_exception();
-  //    KERNEL_PANIC("Unhandled TLB store exception");
+  tlb_help_exception_handling("store");
 }
 
 /**
@@ -117,22 +112,21 @@ void tlb_store_exception(void)
  * @param pagetable Mappings to write to TLB.
  *
  */
-/*
+/* Note: tlb_fill is not used anymore */
 void tlb_fill(pagetable_t *pagetable)
 {
     if(pagetable == NULL)
 	return;
 
-    / Check that the pagetable can fit into TLB. This is needed until
+    /* Check that the pagetable can fit into TLB. This is needed until
      we have proper VM system, because the whole pagetable must fit
-     into TLB. /
+     into TLB. */
     KERNEL_ASSERT(pagetable->valid_count <= (_tlb_get_maxindex()+1));
 
     _tlb_write(pagetable->entries, 0, pagetable->valid_count);
 
-    / Set ASID field in Co-Processor 0 to match thread ID so that
+    /* Set ASID field in Co-Processor 0 to match thread ID so that
        only entries with the ASID of the current thread will match in
-       the TLB hardware. /
+       the TLB hardware. */
     _tlb_set_asid(pagetable->ASID);
 }
-*/
