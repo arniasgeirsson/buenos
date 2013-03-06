@@ -142,8 +142,8 @@ void init_startup_thread(uint32_t arg)
     kprintf("Starting initial program '%s'\n", bootargs_get("initprog"));
 
     /* Use process_spawn instead of process_start from now on. */
-    process_spawn(bootargs_get("initprog"));
-
+    //  process_spawn(bootargs_get("initprog"));
+    process_join(process_spawn(bootargs_get("initprog")));
     /* The current process_start() should never return. */
     KERNEL_PANIC("Run out of initprog.\n");
 }
@@ -236,14 +236,19 @@ void init(void)
 
     /* Let other CPUs run */
     kernel_bootstrap_finished = 1;
+    kprintf("Starting threading system and SMP1\n");
 
     _interrupt_clear_bootstrap();
+    kprintf("Starting threading system and SMP2\n");
+
     _interrupt_enable();
+    kprintf("Starting threading system and SMP3\n");
 
     /* Enter context switch, scheduler will be run automatically,
        since thread_switch() behaviour is identical to timer tick
        (thread timeslice is over). */
     thread_switch();
+    kprintf("Starting threading system and SMP4\n");
 
     /* We should never get here */
     KERNEL_PANIC("Threading system startup failed.");

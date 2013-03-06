@@ -86,11 +86,13 @@ void kernel_exception_handle(int exception)
 	break;
     case EXCEPTION_TLBL:
         print_tlb_debug();
-	KERNEL_PANIC("TLB Load: not handled yet");
+	/*	KERNEL_PANIC("TLB Load: not handled yet");*/
+	tlb_load_exception();
 	break;
     case EXCEPTION_TLBS:
         print_tlb_debug();
-	KERNEL_PANIC("TLB Store: not handled yet");
+	tlb_store_exception();
+	//	KERNEL_PANIC("TLB Store: not handled yet");
 	break;
     case EXCEPTION_ADDRL:
 	print_tlb_debug();

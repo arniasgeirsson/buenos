@@ -39,43 +39,34 @@
 
 #include "lib/types.h"
 
+typedef int process_id_t;
+
+void process_start(process_id_t pid);
+
 #define USERLAND_STACK_TOP 0x7fffeffc
 
 #define PROCESS_PTABLE_FULL  -1
 #define PROCESS_ILLEGAL_JOIN -2
 
-#define PROCESS_MAX_FILELENGTH 256
-#define PROCESS_MAX_PROCESSES  128
-#define PROCESS_MAX_FILES      10
+#define PROCESS_MAX_PROCESSES 32
 
-typedef int process_id_t;
+#define MAX_FILE_NAME 32
 
-typedef enum {
-    PROCESS_FREE,
-    PROCESS_RUNNING,
-    PROCESS_ZOMBIE
-} process_state_t;
+typedef enum {RUNNING, WAITING, ZOMBIE, EMPTY} process_state_t;
 
 typedef struct {
-  char executable[PROCESS_MAX_FILELENGTH];
-  process_state_t state;
+  char executable[MAX_FILE_NAME];
+  process_state_t process_state;
   int retval;
-  process_id_t parent;
+  process_id_t parent_pid;
+} process_control_block_t;
 
-  uint32_t cFiles;
-  int files[PROCESS_MAX_FILES];
-
-  uint32_t heap_end;
-} process_table_t;
-
-/* Initialize the process table */
+/* Initialize the process table.  This must be called during kernel
+   startup before any other process-related calls. */
 void process_init();
 
 /* Run process in a new thread. Returns the PID of the new process. */
 process_id_t process_spawn(const char *executable);
-
-process_id_t process_get_current_process(void);
-process_table_t *process_get_current_process_entry(void);
 
 /* Stop the process and the thread it runs in. Sets the return value as well */
 void process_finish(int retval);
@@ -85,15 +76,13 @@ void process_finish(int retval);
  * Only works on child processes */
 int process_join(process_id_t pid);
 
-/* Add a file to the current process's file list. Returns negative value on
- * error. */
-int process_add_file(int fd);
+/* Return PID of current process. */
+process_id_t process_get_current_process(void);
 
-/* Remove a file from the current process's file list. Returns negative value
- * on error. */
-int process_rem_file(int fd);
+/* Return PCB of current process. */
+process_control_block_t *process_get_current_process_entry(void);
 
-/* Check if a file is in the current process's file list. Returns 0 if it is. */
-int process_check_file(int fd);
+/* Return PCB of a given process */
+process_control_block_t *process_get_process_entry(process_id_t pid);
 
 #endif
