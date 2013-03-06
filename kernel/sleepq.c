@@ -40,7 +40,6 @@
 #include "kernel/config.h"
 #include "kernel/interrupt.h"
 #include "kernel/assert.h"
-#include "lib/debug.h"
 
 /** @name Sleep queue
  *
@@ -103,7 +102,6 @@ void sleepq_add(void *resource)
     TID_t my_tid;
     interrupt_status_t intr_state;
 
-    /*    DEBUG("process_Debug", "Sleep add: %d\n", *(int*)resource);*/
     /* Interrupts _must_ be disabled when calling this function: */
     intr_state = _interrupt_get_state();
     KERNEL_ASSERT((intr_state & INTERRUPT_MASK_ALL) == 0 
@@ -152,8 +150,6 @@ void sleepq_wake(void *resource)
     uint32_t hash;
     interrupt_status_t intr_state;
     TID_t first, prev;
-    
-    /*DEBUG("process_Debug", "Wake one on: %d\n", *(int*)resource);*/
 
     hash = SLEEPQ_HASH(resource);
 
@@ -212,8 +208,6 @@ void sleepq_wake_all(void *resource)
     uint32_t hash;
     interrupt_status_t intr_state;
     TID_t first, prev, wake;
-
-    /* DEBUG("process_Debug", "Wake all on: %d\n", *(int*)resource);*/
 
     hash = SLEEPQ_HASH(resource);
 
