@@ -15,7 +15,7 @@ util/tfstool create fyams.harddisk 2048 disk1
 #util/tfstool write fyams.harddisk tests/prog3 prog3
 #util/tfstool write fyams.harddisk tests/process_test test
 #yams buenos 'initprog=[disk1]test' #process_Debug
-util/tfstool write fyams.harddisk tests/G4_test test
+util/tfstool write fyams.harddisk tests/test_malloc test
 yams buenos 'initprog=[disk1]test' debug_G4
 
 make clean
