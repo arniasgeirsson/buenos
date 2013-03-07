@@ -45,6 +45,8 @@
 #include "lib/debug.h"
 #include "proc/process.h"
 #include "kernel/thread.h"
+#include "vm/vm.h"
+#include "vm/pagepool.h"
 
 int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
@@ -103,9 +105,35 @@ int syscall_join(int pid)
 
 void *syscall_memlimit (void* heapend)
 {
+  int i;
+ 
   uint32_t heap_end = process_get_current_process_entry()->heap_end;
+  
+  if(heapend == NULL){
+    DEBUG("debug_G4", "heapend == NULL, %d\n",heap_end);
+    void* a = (void*)heap_end;
+    DEBUG("debug_G4", "heapend == NULL, %d\n",(uint32_t)a);
+    return (void*)process_get_current_process_entry()->heap_end;
+  }
   DEBUG("debug_G4", "heap_end is %d and arg heapend is %d\n",heap_end,(uint32_t)heapend);
-  return NULL;
+  
+  KERNEL_ASSERT(heap_end < (uint32_t)heapend);
+  
+  int pages = (uint32_t)heapend/PAGE_SIZE - heap_end/PAGE_SIZE;
+  KERNEL_ASSERT(pages > -1);
+  DEBUG("debug_G4","Pages: %d\n", pages);
+  pagetable_t *pagetable = thread_get_current_thread_entry()->pagetable;
+  
+  for(i = 0; i < pages; i++){
+    uint32_t phys_addr = pagepool_get_phys_page();
+    if (!phys_addr)
+      return NULL;
+    vm_map(pagetable, phys_addr, heap_end + i * PAGE_SIZE, 1);
+  }
+  
+  process_get_current_process_entry()->heap_end = (uint32_t)heapend;
+  
+  return (void*)process_get_current_process_entry()->heap_end;
 }
 
 /**
@@ -148,6 +176,9 @@ void syscall_handle(context_t *user_context)
       break;
     case SYSCALL_JOIN:
       user_context->cpu_regs[MIPS_REGISTER_V0] = syscall_join((int)user_context->cpu_regs[MIPS_REGISTER_A1]);
+      break;
+    case SYSCALL_MEMLIMIT:
+      user_context->cpu_regs[MIPS_REGISTER_V0] = (uint32_t)syscall_memlimit((void*)user_context->cpu_regs[MIPS_REGISTER_A1]);
       break;
     default: 
       KERNEL_PANIC("Unhandled system call\n");
