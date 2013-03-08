@@ -78,7 +78,7 @@ void tlb_help_exception_handling(char *type)
   for (i=0; i < PAGETABLE_ENTRIES; i++) {
     tmp = current_thread->pagetable->entries[i];
     if ((unsigned int)tmp.VPN2 == (unsigned int)tlb_exc_state.badvpn2) {
-      DEBUG("debug_G4", "Found match in tlb_%s_exception at index %d\n",type,i);
+      DEBUG("debug_G4", "tlb_%s_exception: Found match at index %d\n",type,i);
       tlb_entry = tmp;
       break;
     }

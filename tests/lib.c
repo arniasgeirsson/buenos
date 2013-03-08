@@ -769,12 +769,13 @@ static const size_t MIN_ALLOC_SIZE = sizeof(free_block_t);
 
 free_block_t *free_list = NULL;
 
-byte heap[HEAP_SIZE];
-void *heap_start = NULL;
-void *heap_end = NULL;
+byte heap[HEAP_SIZE]; /* obselete */
+void *heap_start = NULL; /* Start address of the heap. */
+void *heap_end = NULL; /* End address of the heap. */
 
 /* Initialise the heap - malloc et al won't work unless this is called
    first. */
+/* heap_init should now be obselete. */
 void heap_init()
 {
   free_list = (free_block_t*) heap;
@@ -788,6 +789,9 @@ void heap_init()
 void *malloc(size_t size) {
   free_block_t *block;
   free_block_t **prev_p; /* Previous link so we can remove an element */
+  void *old_end, *new_end;
+  free_block_t *new_block, *tmp;  
+
   if (size == 0) {
     return NULL;
   }
@@ -805,8 +809,7 @@ void *malloc(size_t size) {
   for (block = free_list, prev_p = &free_list;
        block;
        prev_p = &(block->next), block = block->next) {
-    printf("LOOP-1");
-    printf("Free-list block: pointer %d, size %d, next %d\n",(uint32_t)block,block->size,(block->next != NULL));
+    printf("Malloc: Free-list block: pointer %d, size %d, next %d\n",(uint32_t)block,block->size,(block->next != NULL));
     if ( (int)( block->size - size - sizeof(size_t) ) >= 
          (int)( MIN_ALLOC_SIZE+sizeof(size_t) ) ) {
       /* Block is too big, but can be split. */
@@ -824,36 +827,56 @@ void *malloc(size_t size) {
     /* Else, check the next block. */
   }
 
+  /* If no suitable free block was found, we must
+     allocate a new one. */
+
+  /* If this is the first time, we get the addresse of
+     our process's heap end, for bookkeeping. */
   if (heap_start == NULL) {
     heap_start = syscall_memlimit(NULL);
     heap_end = heap_start;
-    printf("Heap_start:%d\n", (uint32_t)heap_start);
+    printf("Malloc: Heap_start: %d\n", (uint32_t)heap_start);
   }
 
-  void* old_end = heap_end;
-  printf("Size: %d, heapend: %d\n", size, (int)heap_end); 
+  printf("Malloc: Size: %d, heapend: %d\n", size, (int)heap_end); 
+
+  old_end = heap_end;
   heap_end = (void*)((uint32_t)heap_end + size+ sizeof(size_t));
-  void *new_end = syscall_memlimit(heap_end);
-  printf("memlimit returned %d\n", (uint32_t)new_end);
+  /* Try and allocate more memory */
+  new_end = syscall_memlimit(heap_end);
+
+  /* Check if it was possible to get more memory. */
   if(new_end == NULL){
     /* No heap space left. */
+    printf("Malloc: syscall_memlimit returned NULL%s\n","");
+    heap_end = (void*)((uint32_t)heap_end - size+ sizeof(size_t));
     return NULL;
   }
 
-  if(old_end >= new_end)
-    return NULL;
+  printf("Malloc: memlimit returned %d\n", (uint32_t)new_end);
 
-  free_block_t *new_block;
+  /* Make sure the new end is not lower than the old.
+     It should happen. */
+  if(old_end >= new_end) {
+    printf("Malloc: new_end was lower or equal to the old_end%s\n","");
+    heap_end = (void*)((uint32_t)heap_end - size+ sizeof(size_t));
+    return NULL;
+  }
+
+  /* Create a new free block with the size we just allocated. */
   new_block = (free_block_t*)((byte*)old_end);
   new_block->size = new_end - old_end;
   new_block->next = NULL;
+  printf("Malloc: Created free block with size %d and address %d\n",new_block->size, (uint32_t)new_block);
 
+  /* Attach it too the list of free blocks in a 
+     sorted manor. */
   if (free_list == NULL) {
-    printf("free_list is null\n");
+    printf("Malloc: free_list is null%s\n","");
     free_list = new_block;
   } else {
-    printf("free_list is not null\n");
-    free_block_t *tmp = free_list;
+    printf("Malloc: free_list is not null%s\n","");
+    tmp = free_list;
     
     while (tmp->next != NULL) {
       tmp = tmp->next;
@@ -862,16 +885,26 @@ void *malloc(size_t size) {
     tmp->next = new_block;
   }
 
+  /* Update the heap end to the new end address. */
   heap_end = new_end;
   
+  /* Recursively call malloc which should now find the free block
+     we just created and fullfill the user request for more memory. */
   return malloc(size);
 }
 
 /* Return the block pointed to by ptr to the free pool. */
 void free(void *ptr)
 {
-  if (ptr < heap_start || ptr > heap_end) 
-    return; /* LALALALALAL!! */
+
+  /* Make sure that the pointer is within the space of
+     the already allocated memory space. */
+  if (ptr < heap_start || ptr > heap_end) {
+    printf("Error: ptr (%d) given to free is either below heap_start (%d) or above heap_end (%d)\n"
+	   ,(uint32_t)ptr,(uint32_t)heap_start,(uint32_t)heap_end);
+    return;
+  }
+
   if (ptr != NULL) { /* Freeing NULL is a no-op */
     free_block_t *block = (free_block_t*)((byte*)ptr-sizeof(size_t));
     free_block_t *cur_block;

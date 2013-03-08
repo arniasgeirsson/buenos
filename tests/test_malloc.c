@@ -15,7 +15,9 @@ int main (void){
   free(a);
 
   wrapper_writeString("----- 4 -----\n");
-  free(b);  
+  free(b);
+
+  free(b+1000);
 
   syscall_halt();
   return 1; 

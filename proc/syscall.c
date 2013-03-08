@@ -104,45 +104,70 @@ int syscall_join(int pid)
   return process_join(pid);
 }
 
-void *syscall_memlimit (void* heapend)
+void *syscall_memlimit (void* new_heap_end)
 {
   int i;
- 
   uint32_t heap_end = process_get_current_process_entry()->heap_end;
-  
-  if(heapend == NULL){
-    DEBUG("debug_G4", "heapend == NULL, %d\n",heap_end);
-    void* a = (void*)heap_end;
-    DEBUG("debug_G4", "heapend == NULL, %d\n",(uint32_t)a);
+  int pages;
+  interrupt_status_t intr_status;
+  pagetable_t *pagetable;
+  uint32_t phys_addr;
+
+  /* If argument is NULL, return the current heap end address. */
+  if(new_heap_end == NULL){
+    DEBUG("debug_G4", "Syscall_memlimit: new_heap_end == NULL, current heap_end is %d\n",heap_end);
     return (void*)process_get_current_process_entry()->heap_end;
   }
-  DEBUG("debug_G4", "heap_end is %d and arg heapend is %d\n",heap_end,(uint32_t)heapend);
+
+  DEBUG("debug_G4", "Syscall_memlimit: heap_end is %d and arg new_heap_end is %d\n",heap_end,(uint32_t)new_heap_end);
   
-  KERNEL_ASSERT(heap_end < (uint32_t)heapend);
+  /* As unmap is not implemented, it is not allowed to decrease the heap. */
+  KERNEL_ASSERT(heap_end < (uint32_t)new_heap_end);
   
-  int pages = (uint32_t)heapend/PAGE_SIZE - heap_end/PAGE_SIZE;
+  /* Calculate the needed number of pages to fullfill the request.*/
+  pages = (uint32_t)new_heap_end/PAGE_SIZE - heap_end/PAGE_SIZE;
   KERNEL_ASSERT(pages > -1);
-  DEBUG("debug_G4","Pages: %d\n", pages);
+  DEBUG("debug_G4","Syscall_memlimit: Number of needed pages: %d\n", pages);
 
-  interrupt_status_t intr_status = _interrupt_disable();
+  /* Disable interrupts to make sure no one steals any pages we might need. */
+  intr_status = _interrupt_disable();
 
+  /* If the amount of free pages can fullfill our request,
+     we want to assume that we can take those without having to
+     worry. Hence the disabling of interrupts. */
   if (pagepool_get_num_free_pages() < pages) {
+    DEBUG("debug_G4","Syscall_memlimit: Not enough free pages are available\n");
     _interrupt_set_state(intr_status);
     return NULL;
   }
 
-  pagetable_t *pagetable = thread_get_current_thread_entry()->pagetable;
-  
+  /* Make the tmp heap_end value point to the next page address,
+     to avoid mapping with the same virtual address.
+     And to keep the virtual addresses page-aligned. */
+  if ((heap_end % PAGE_SIZE) == 0) {
+    heap_end = heap_end + PAGE_SIZE;
+  } else {
+    heap_end = heap_end + (heap_end % PAGE_SIZE);
+  }
+
+  pagetable = thread_get_current_thread_entry()->pagetable;
+
+  KERNEL_ASSERT(pagetable != NULL);
+
+  /* Get the number of needed pages and map them into the
+     process page table. */
   for(i = 0; i < pages; i++){
-    uint32_t phys_addr = pagepool_get_phys_page();
+    phys_addr = pagepool_get_phys_page();
     if (!phys_addr)
-      KERNEL_PANIC("No physical page left, should not be able to happen.");
+      KERNEL_PANIC("Syscall_memlimit: No physical page left, should not be able to happen.");
     vm_map(pagetable, phys_addr, heap_end + i * PAGE_SIZE, 1);
   }
   _interrupt_set_state(intr_status);
 
-  process_get_current_process_entry()->heap_end = (uint32_t)heapend;
+  /* Update the process heap pointer. */
+  process_get_current_process_entry()->heap_end = (uint32_t)new_heap_end;
   
+  /* Return the updated heap pointer. */
   return (void*)process_get_current_process_entry()->heap_end;
 }
 
