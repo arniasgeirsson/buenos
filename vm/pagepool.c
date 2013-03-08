@@ -159,7 +159,10 @@ void pagepool_free_phys_page(uint32_t phys_addr)
     _interrupt_set_state(intr_status);
 }
 
-
+int pagepool_get_num_free_pages()
+{
+  return pagepool_num_free_pages;
+}
 
 /** @} */
 

@@ -47,6 +47,7 @@
 #include "kernel/thread.h"
 #include "vm/vm.h"
 #include "vm/pagepool.h"
+#include "kernel/interrupt.h"
 
 int syscall_write(int fhandle, const void *buffer, int length){
   device_t *dev;
@@ -122,15 +123,24 @@ void *syscall_memlimit (void* heapend)
   int pages = (uint32_t)heapend/PAGE_SIZE - heap_end/PAGE_SIZE;
   KERNEL_ASSERT(pages > -1);
   DEBUG("debug_G4","Pages: %d\n", pages);
+
+  interrupt_status_t intr_status = _interrupt_disable();
+
+  if (pagepool_get_num_free_pages() < pages) {
+    _interrupt_set_state(intr_status);
+    return NULL;
+  }
+
   pagetable_t *pagetable = thread_get_current_thread_entry()->pagetable;
   
   for(i = 0; i < pages; i++){
     uint32_t phys_addr = pagepool_get_phys_page();
     if (!phys_addr)
-      return NULL;
+      KERNEL_PANIC("No physical page left, should not be able to happen.");
     vm_map(pagetable, phys_addr, heap_end + i * PAGE_SIZE, 1);
   }
-  
+  _interrupt_set_state(intr_status);
+
   process_get_current_process_entry()->heap_end = (uint32_t)heapend;
   
   return (void*)process_get_current_process_entry()->heap_end;
