@@ -16,8 +16,17 @@ int main (void){
 
   wrapper_writeString("----- 4 -----\n");
   free(b);
+  wrapper_writeString("----- 5 -----\n");
+  uint32_t g = 21040;
+  void* c = (void*)g;
+  free(c);
+  wrapper_writeString("----- 6 -----\n");
 
-  free(b+1000);
+  int i;
+  for (i=0; i < 99; i++) {
+    void* aa = malloc(10);
+    free(aa);
+  }
 
   syscall_halt();
   return 1; 
