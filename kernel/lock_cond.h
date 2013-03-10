@@ -5,7 +5,7 @@
 
 typedef int cond_t;
 
-typedef struct {
+typedef struct lock{
   int lock;
   spinlock_t slock;
 } lock_t;  
