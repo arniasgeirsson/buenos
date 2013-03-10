@@ -8,29 +8,42 @@ interrupt_status_t intr_status;
 
 int lock_reset(lock_t *lock){
   intr_status = _interrupt_disable();
-  if(*lock == 0)
-    return -1;
+  //if(*lock == 0)
+  //  return -1;
   
-  *lock = 1;
+  spinlock_reset(&(lock->slock));
+  
+  spinlock_acquire(&(lock->slock));
+
+  lock->lock = 1;
+
+  spinlock_release(&(lock->slock));
+  _interrupt_set_state(intr_status);
   return 0;
 }
 
 void lock_acquire(lock_t *lock){
   intr_status = _interrupt_disable();
-  if(*lock)
-    *lock = 0;
-  else{
+  spinlock_acquire(&(lock->slock));
+
+  while(!(lock->lock)){
     sleepq_add((void*)lock);
     thread_switch();
-    lock_acquire(lock);
   }
+  lock->lock = 0;
+  
+  spinlock_release(&(lock->slock));
   _interrupt_set_state(intr_status);
 }
 
 void lock_release(lock_t *lock){
   intr_status = _interrupt_disable();
-  *lock = 1;
+  spinlock_acquire(&(lock->slock));
+  
+  lock->lock = 1;
   sleepq_wake((void*)lock);
+
+  spinlock_release(&(lock->slock));
   _interrupt_set_state(intr_status);
 }
 
@@ -53,14 +66,14 @@ void condition_wait(cond_t *cond, lock_t *lock){
 
 void condition_signal(cond_t *cond, lock_t *lock){
   intr_status = _interrupt_disable();
-  KERNEL_ASSERT(!(*lock));
+  lock = lock;
   sleepq_wake((void*)cond);
   _interrupt_set_state(intr_status);
 }
 
 void condition_broadcast(cond_t *cond, lock_t *lock){
   intr_status = _interrupt_disable();
-  KERNEL_ASSERT(!(*lock));
+  lock = lock;
   sleepq_wake_all((void*)cond);
   _interrupt_set_state(intr_status);
 }

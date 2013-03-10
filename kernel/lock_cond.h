@@ -1,7 +1,14 @@
 #ifndef BUENOS_KERNEL_LOCK_COND_H
 #define BUENOS_KERNEL_LOCK_COND_H
 
-typedef int lock_t, cond_t;
+#include "kernel/spinlock.h"
+
+typedef int cond_t;
+
+typedef struct {
+  int lock;
+  spinlock_t slock;
+} lock_t;  
 
 int lock_reset(lock_t *lock);
 void lock_acquire(lock_t *lock);
