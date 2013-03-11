@@ -305,6 +305,8 @@ void *memcpy(void *dest, const void *src, size_t n) {
 
 #endif
 
+#ifdef PROVIDE_OWN_WRAPPERS
+
 /* Helper for wrapper_writeInt, and convertIntToString. */
 int intLen(int val)
 {
@@ -388,6 +390,7 @@ void wrapper_writeMlt(char *str, int val, char *str2)
   wrapper_writeString(str2);
 }
 
+#endif
 
 #ifdef PROVIDE_BASIC_IO
 
@@ -772,9 +775,7 @@ free_block_t *free_list = NULL;
 byte heap[HEAP_SIZE]; /* obselete */
 void *heap_start = NULL; /* Start address of the heap. */
 void *heap_end = NULL; /* End address of the heap. */
-#define MAX_MALL_PTRS 64
-uint32_t mallptrs[MAX_MALL_PTRS];
-int mallptrs_size;
+
 /* Initialise the heap - malloc et al won't work unless this is called
    first. */
 /* heap_init should now be obselete. */
@@ -785,7 +786,13 @@ void heap_init()
   free_list->next = NULL;
 }
 
-void init_mall_ptrs()
+#define MAX_MALL_PTRS 64
+uint32_t mallptrs[MAX_MALL_PTRS];
+int mallptrs_size;
+
+/* Initialize the mallptrs array by setting
+   all entries to 0. */
+void mallptrs_init()
 {
   int i;
   mallptrs_size = 0;
@@ -794,7 +801,9 @@ void init_mall_ptrs()
   }
 }
 
-void *insert_into_mall_ptrs(void *ptr)
+/* Insert the adress of a pointer in
+   mallptrs. */
+void *mallptrs_insert(void *ptr)
 {
   int i;
   for (i=0; i < MAX_MALL_PTRS; i++) {
@@ -804,11 +813,13 @@ void *insert_into_mall_ptrs(void *ptr)
       return ptr;
     }
   }
-  printf("insert_into_mall_ptrs: array is filled%s\n","");
-  return ptr; /* Return NULL ? */
+  printf("mallptrs_insert: array is filled%s\n","");
+  return NULL;
 }
 
-int member_mall_ptrs(void *ptr)
+/* Check if the adress of a pointer exists
+   in mallptrs. */
+int mallptrs_member(void *ptr)
 {
   int i;
   for (i=0; i < MAX_MALL_PTRS; i++) {
@@ -819,7 +830,9 @@ int member_mall_ptrs(void *ptr)
   return 0;
 }
 
-void remove_mall_ptrs(void *ptr)
+/* Remove the adress of a pointer from
+   mallptrs. */
+void mallptrs_remove(void *ptr)
 {
   int i;
   for (i=0; i < MAX_MALL_PTRS; i++) {
@@ -829,7 +842,7 @@ void remove_mall_ptrs(void *ptr)
       return;
     }
   }
-  printf("remove_mall_ptrs: pointer was not in mallptrs%s\n","");
+  printf("mallptrs_remove: pointer was not in mallptrs%s\n","");
   return;
 }
 
@@ -863,7 +876,8 @@ void *malloc(size_t size) {
   for (block = free_list, prev_p = &free_list;
        block;
        prev_p = &(block->next), block = block->next) {
-    printf("Malloc: Free-list block: pointer %d, size %d, next %d\n",(uint32_t)block,block->size,(block->next != NULL));
+    printf("Malloc: Free-list block: pointer %d, size %d, next %d\n"
+	   ,(uint32_t)block,block->size,(block->next != NULL));
     if ( (int)( block->size - size - sizeof(size_t) ) >= 
          (int)( MIN_ALLOC_SIZE+sizeof(size_t) ) ) {
       /* Block is too big, but can be split. */
@@ -872,13 +886,13 @@ void *malloc(size_t size) {
         (free_block_t*)(((byte*)block)+block->size);
       new_block->size = size+sizeof(size_t);
       /*return ((byte*)new_block)+sizeof(size_t);*/
-      return insert_into_mall_ptrs(((byte*)new_block)+sizeof(size_t));
+      return mallptrs_insert(((byte*)new_block)+sizeof(size_t));
     } else if (block->size >= size + sizeof(size_t)) {
       /* Block is big enough, but not so big that we can split
          it, so just return it */
       *prev_p = block->next;
       /*return ((byte*)block)+sizeof(size_t);*/
-      return insert_into_mall_ptrs(((byte*)block)+sizeof(size_t));
+      return mallptrs_insert(((byte*)block)+sizeof(size_t));
     }
     /* Else, check the next block. */
   }
@@ -892,11 +906,11 @@ void *malloc(size_t size) {
   if (heap_start == NULL) {
     heap_start = syscall_memlimit(NULL);
     heap_end = heap_start;
-    init_mall_ptrs();
+    mallptrs_init();
     printf("Malloc: Heap_start: %d\n", (uint32_t)heap_start);
   }
 
-  printf("Malloc: Size: %d, heapend: %d\n", size, (int)heap_end); 
+  printf("Malloc: Size: %d, heapend: %d\n", size, (uint32_t)heap_end); 
 
   old_end = heap_end;
   heap_end = (void*)((uint32_t)heap_end + size+ sizeof(size_t));
@@ -913,8 +927,16 @@ void *malloc(size_t size) {
 
   printf("Malloc: memlimit returned %d\n", (uint32_t)new_end);
 
+  /* Make sure that the new end is not lower than what
+     the user requested. */
+  if(new_end < heap_end) {
+    printf("Malloc: new_end (%d) was lower than what was requested (%d)\n"
+	   ,(uint32_t)new_end,(uint32_t)heap_end);
+    return NULL;
+  }
+
   /* Make sure the new end is not lower than the old.
-     It should happen. */
+     It should not happen. */
   if(old_end >= new_end) {
     printf("Malloc: new_end was lower or equal to the old_end%s\n","");
     heap_end = (void*)((uint32_t)heap_end - size+ sizeof(size_t));
@@ -928,7 +950,7 @@ void *malloc(size_t size) {
   printf("Malloc: Created free block with size %d and address %d\n",new_block->size, (uint32_t)new_block);
 
   /* Attach it too the list of free blocks in a 
-     sorted manor. */
+     sorted manor. That is at the end. */
   if (free_list == NULL) {
     printf("Malloc: free_list is null%s\n","");
     free_list = new_block;
@@ -964,12 +986,12 @@ void free(void *ptr)
   }
   
   /* Make sure that the pointer ptr was previously allocated by malloc. */
-  if (!member_mall_ptrs(ptr)) {
+  if (!mallptrs_member(ptr)) {
     printf("Error: free: pointer %d was not previous allocated by malloc!\n",(uint32_t)ptr);
     return;
   }
   /* Remove the ptr from the list of allocated pointers. */
-  remove_mall_ptrs(ptr);
+  mallptrs_remove(ptr);
 
   if (ptr != NULL) { /* Freeing NULL is a no-op */
     free_block_t *block = (free_block_t*)((byte*)ptr-sizeof(size_t));

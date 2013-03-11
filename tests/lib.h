@@ -47,6 +47,7 @@
 #define PROVIDE_FORMATTED_OUTPUT
 #define PROVIDE_HEAP_ALLOCATOR
 #define PROVIDE_MISC
+#define PROVIDE_OWN_WRAPPERS
 
 #include <stdarg.h>
 #include <stddef.h>
@@ -123,6 +124,10 @@ int snprintf(char *, int, const char *, ...);
 #ifdef PROVIDE_HEAP_ALLOCATOR
 #define HEAP_SIZE 256 /* 256 byte heap - puny! */
 void heap_init(); /* Call this once before any other heap functions. */
+void mallptrs_init();
+void *mallptrs_insert(void *ptr);
+int mallptrs_member(void *ptr);
+void mallptrs_remove(void *ptr);
 void *calloc(size_t nmemb, size_t size);
 void *malloc(size_t size);
 void free(void *ptr);
@@ -133,11 +138,13 @@ void *realloc(void *ptr, size_t size);
 int atoi(const char *nptr);
 #endif
 
+#ifdef PROVIDE_OWN_WRAPPERS
 int intLen(int val);
 int stringLength(char *str);
 void convertIntToString(int val, char *str);
 void wrapper_writeString(char *str);
 void wrapper_writeInt(int val);
 void wrapper_writeMlt(char *str, int val, char *str2);
+#endif
 
 #endif /* BUENOS_USERLAND_LIB_H */

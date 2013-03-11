@@ -141,6 +141,18 @@ void *syscall_memlimit (void* new_heap_end)
     return NULL;
   }
 
+  pagetable = thread_get_current_thread_entry()->pagetable;
+
+  KERNEL_ASSERT(pagetable != NULL);
+
+  /* Make sure that the pagetable has room for the needed
+     number of pages. */
+  if ((pagetable->valid_count+pages) > PAGETABLE_ENTRIES) {
+    DEBUG("debug_G4","Syscall_memlimit: Request is too big. Cannot add pages %d to pagetable of thread ASID %d\n",pages,pagetable->ASID);
+    _interrupt_set_state(intr_status);
+    return NULL;
+  }
+
   /* Make the tmp heap_end value point to the next page address,
      to avoid mapping with the same virtual address.
      And to keep the virtual addresses page-aligned. */
@@ -149,10 +161,6 @@ void *syscall_memlimit (void* new_heap_end)
   } else {
     heap_end = heap_end + (heap_end % PAGE_SIZE);
   }
-
-  pagetable = thread_get_current_thread_entry()->pagetable;
-
-  KERNEL_ASSERT(pagetable != NULL);
 
   /* Get the number of needed pages and map them into the
      process page table. */
