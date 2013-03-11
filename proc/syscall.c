@@ -154,8 +154,9 @@ void *syscall_memlimit (void* new_heap_end)
   }
 
   /* Make the tmp heap_end value point to the next page address,
-     to avoid mapping with the same virtual address.
-     And to keep the virtual addresses page-aligned. */
+     to avoid mapping with the same virtual address, if the heap was
+     at a page-boundary. And to keep the virtual addresses page-aligned.
+     This has only any effect if we need to allocate atleast one page. */
   if ((heap_end % PAGE_SIZE) == 0) {
     heap_end = heap_end + PAGE_SIZE;
   } else {

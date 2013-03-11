@@ -963,6 +963,7 @@ void *malloc(size_t size) {
     }
 
     tmp->next = new_block;
+    printf("Malloc: out of loop%s\n","");
   }
 
   /* Update the heap end to the new end address. */
