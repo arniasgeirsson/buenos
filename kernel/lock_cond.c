@@ -8,8 +8,6 @@ interrupt_status_t intr_status;
 
 int lock_reset(lock_t *lock){
   intr_status = _interrupt_disable();
-  //if(*lock == 0)
-  //  return -1;
   
   spinlock_reset(&(lock->slock));
   
